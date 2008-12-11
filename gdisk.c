@@ -123,6 +123,16 @@ int main(int c, char **v)
     //    warn("Couldn't write MBR sector");
 }
 
+static int help(char **arg)
+{
+    printf("Commands:\n");
+    foreach_autolist(struct command *c, command)
+        printf("%-20s %s\n", c->name, c->help);
+
+    return 0;
+}
+add_command("help", help, "Show a list of commands");
+
 void dump_dev(struct device *dev)
 {
     printf("dev.sector_size: %ld\n", dev->sector_size);
