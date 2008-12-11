@@ -4,13 +4,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
+#include <errno.h>
 #include <err.h>
+#include <readline/readline.h>
 #include "lengthof.h"
 #include "round.h"
 #include "guid.h"
 #include "device.h"
 #include "gpt.h"
 #include "mbr.h"
+#include "autolist.h"
+#include "gdisk.h"
+
+autolist_define(command);
 
 void dump_dev(struct device *dev);
 void dump_header(struct gpt_header *header);
@@ -65,6 +71,40 @@ int main(int c, char **v)
         if (alias[mp] == -1)
             mbr_sync = false;
     }
+
+    char *line;
+    while (line = readline("gdisk> ")) {
+        add_history(line);
+        char *l = line;
+        while (isspace(*l)) l++;
+        foreach_autolist(struct command *c, command)
+            if (strcasecmp(c->name, l) == 0) {
+                int args;
+                for (args=0; c->arg[args].name; args++) {}
+                char **argv = calloc(args, sizeof(*argv));
+                if (!argv) err(ENOMEM, "No memory for argument list");
+                for (int a=0; a<args; a++) {
+                    char *prompt = NULL;
+                    asprintf(&prompt, "%s: %s> ", c->name, c->arg[a].name);
+                    if (!prompt) err(ENOMEM, "No memory for argument prompt");
+                    argv[a] = readline(prompt);
+                    if (!argv[a]) goto done;
+                    free(prompt);
+                }
+
+                int status = c->handler(argv);
+                if (status)
+                    warnc(status, "%s failed", c->name);
+              done:
+                if (argv)
+                    for (int a=0; a<args; a++)
+                        free(argv[a]);
+                free(argv);
+            }
+        free(line);
+    }
+    if (line)
+        free(line);
 
     dump_mbr(mbr);
     dump_dev(dev);
