@@ -131,7 +131,7 @@ static int help(char **arg)
 
     return 0;
 }
-add_command("help", help, "Show a list of commands");
+command_add("help", help, "Show a list of commands");
 
 void dump_dev(struct device *dev)
 {

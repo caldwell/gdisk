@@ -20,7 +20,7 @@ struct command {
 //#define C_Partition 0x04
 
 #include "autolist.h"
-#define add_command(name, handler, help, ...) \
+#define command_add(name, handler, help, ...) \
     static struct command_arg Unique(__command_arg__)[] = { NULL, 0, ##__VA_ARGS__, NULL, 0 }; \
     static struct command Unique(__command__) = { name, handler, help, &Unique(__command_arg__)[1] }; \
     autolist_add(command, &Unique(__command__))
