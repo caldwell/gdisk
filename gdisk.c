@@ -18,6 +18,8 @@
 
 autolist_define(command);
 
+static struct partition_table read_table(struct device *dev);
+static void free_table(struct partition_table t);
 void dump_dev(struct device *dev);
 void dump_header(struct gpt_header *header);
 void dump_partition(struct gpt_partition *p);
@@ -31,6 +33,8 @@ static void usage(char *me, int exit_code)
     exit(exit_code);
 }
 
+struct partition_table g_table;
+
 int main(int c, char **v)
 {
     char *device_name = v[1];
@@ -41,36 +45,7 @@ int main(int c, char **v)
     if (!dev)
         err(0, "Couldn't find device %s", v[1]);
 
-
-    struct gpt_header *header = get_sectors(dev,1,1);
-    struct gpt_header *alt_header = get_sectors(dev,header->alternate_lba,1);
-
-    if (sizeof(struct gpt_partition) < header->partition_entry_size)
-        err(0, "Size of partition entries are %d instead of %d", header->partition_entry_size, sizeof(struct gpt_partition));
-
-    union {
-        struct gpt_partition part;
-        char pad[header->partition_entry_size];
-    } *table = get_sectors(dev, 2, divide_round_up(header->partition_entry_size * header->partition_entries,dev->sector_size));
-
-    struct mbr mbr = read_mbr(dev);
-
-    int mbr_sync = true;
-    int alias[lengthof(mbr.partition)] = { [0 ... 3] = -1 };
-    for (int mp=0; mp<lengthof(mbr.partition); mp++) {
-        for (int gp=0; gp<header->partition_entries; gp++)
-            if (mbr.partition[mp].partition_type &&
-                table[gp].part.first_lba < 0x100000000LL &&
-                table[gp].part.last_lba  < 0x100000000LL &&
-                (mbr.partition[mp].first_sector_lba == table[gp].part.first_lba ||
-                 // first partition could be type EE which covers the GPT partition table and the optional EFI filesystem.
-                 // The EFI filesystem in the GPT doesn't cover the EFI partition table, so the starts might not line up.
-                 mbr.partition[mp].first_sector_lba == 1 && mbr.partition[mp].partition_type == 0xee) &&
-                mbr.partition[mp].first_sector_lba + mbr.partition[mp].sectors == table[gp].part.last_lba + 1)
-                alias[mp] = gp;
-        if (alias[mp] == -1)
-            mbr_sync = false;
-    }
+    g_table = read_table(dev);
 
     char *line;
     while (line = readline("gdisk> ")) {
@@ -114,18 +89,7 @@ int main(int c, char **v)
     if (line)
         free(line);
 
-    dump_mbr(mbr);
-    dump_dev(dev);
-    dump_header(header);
-    dump_header(alt_header);
-    for (int i=0; i<header->partition_entries; i++) {
-        if (memcmp(gpt_partition_type_empty, table[i].part.partition_type, sizeof(gpt_partition_type_empty)) == 0)
-            continue;
-        printf("Partition %d of %d\n", i, header->partition_entries);
-        dump_partition(&table[i].part);
-    }
-    free(header);
-    free(table);
+    free_table(g_table);
 
     //if (!write_mbr(dev, mbr))
     //    warn("Couldn't write MBR sector");
@@ -147,6 +111,48 @@ static int quit(char **arg)
     return ECANCELED; // total special case. Weak.
 }
 command_add("quit", quit, "Quit, leaving the disk untouched.");
+
+static struct partition_table read_table(struct device *dev)
+{
+    struct partition_table t;
+    t.dev = dev;
+    t.header = get_sectors(dev,1,1);
+    t.alt_header = get_sectors(dev,t.header->alternate_lba,1);
+
+    if (sizeof(struct gpt_partition) != t.header->partition_entry_size)
+        err(0, "Size of partition entries are %d instead of %d", t.header->partition_entry_size, sizeof(struct gpt_partition));
+
+    t.partition = get_sectors(dev, 2, divide_round_up(t.header->partition_entry_size * t.header->partition_entries,dev->sector_size));
+
+    t.mbr = read_mbr(dev);
+
+    t.options.mbr_sync = true;
+    for (int i=0; i<lengthof(t.mbr.partition); i++)
+        t.alias[i] = -1;
+    for (int mp=0; mp<lengthof(t.mbr.partition); mp++) {
+        for (int gp=0; gp<t.header->partition_entries; gp++)
+            if (t.mbr.partition[mp].partition_type &&
+                t.partition[gp].first_lba < 0x100000000LL &&
+                t.partition[gp].last_lba  < 0x100000000LL &&
+                (t.mbr.partition[mp].first_sector_lba == t.partition[gp].first_lba ||
+                 // first partition could be type EE which covers the GPT partition table and the optional EFI filesystem.
+                 // The EFI filesystem in the GPT doesn't cover the EFI partition table, so the starts might not line up.
+                 t.mbr.partition[mp].first_sector_lba == 1 && t.mbr.partition[mp].partition_type == 0xee) &&
+                t.mbr.partition[mp].first_sector_lba + t.mbr.partition[mp].sectors == t.partition[gp].last_lba + 1)
+                t.alias[mp] = gp;
+        if (t.alias[mp] == -1)
+            t.options.mbr_sync = false;
+    }
+
+    return t;
+}
+
+static void free_table(struct partition_table t)
+{
+    free(t.header);
+    free(t.alt_header);
+    free(t.partition);
+}
 
 void dump_dev(struct device *dev)
 {

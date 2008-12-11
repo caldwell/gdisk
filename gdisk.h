@@ -2,6 +2,21 @@
 #ifndef __GDISK_H__
 #define __GDISK_H__
 
+struct partition_table {
+    struct device *dev;
+    struct gpt_header *header;
+    struct gpt_header *alt_header;
+    struct gpt_partition *partition;
+    struct mbr mbr;
+    struct options {
+        int mbr_sync;
+    } options;
+    int alias[lengthof(((struct mbr*)0)->partition)];
+};
+
+// This is how you get to anything good.
+extern struct partition_table g_table;
+
 struct command_arg {
     char *name;
     int type;
