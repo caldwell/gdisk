@@ -160,6 +160,13 @@ void dump_dev(struct device *dev)
     printf("dev.sector_count: %lld\n", dev->sector_count);
 }
 
+static int command_dump_dev(char **arg)
+{
+    dump_dev(g_table.dev);
+    return 0;
+}
+command_add("debug-dump-dev", command_dump_dev, "Dump device structure");
+
 void dump_header(struct gpt_header *header)
 {
     printf("signature[8]         = %.8s\n", header->signature);
@@ -178,6 +185,14 @@ void dump_header(struct gpt_header *header)
     printf("partition_crc        = %08x\n", header->partition_crc);
 }
 
+static int command_dump_header(char **arg)
+{
+    dump_header(arg[0] ? g_table.alt_header : g_table.header);
+    return 0;
+}
+command_add("debug-dump-gpt-header", command_dump_header, "Dump GPT header structure",
+            "alt", C_Flag);
+
 void dump_partition(struct gpt_partition *p)
 {
     printf("partition_type = %s\n",   guid_str(p->partition_type));
@@ -193,3 +208,22 @@ void dump_partition(struct gpt_partition *p)
         name[i] = p->name[i];
     printf("name[36]       = %.36ls\n",   name);
 }
+
+static int command_dump_partition(char **arg)
+{
+    for (int i=0; i<g_table.header->partition_entries; i++) {
+        if (memcmp(gpt_partition_type_empty, g_table.partition[i].partition_type, sizeof(gpt_partition_type_empty)) == 0)
+            continue;
+        printf("Partition %d of %d\n", i, g_table.header->partition_entries);
+        dump_partition(&g_table.partition[i]);
+    }
+    return 0;
+}
+command_add("debug-dump-partition", command_dump_partition, "Dump partitions structure");
+
+static int command_dump_mbr(char **arg)
+{
+    dump_mbr(g_table.mbr);
+    return 0;
+}
+command_add("debug-dump-mbr", command_dump_mbr, "Dump MBR structure");
