@@ -154,6 +154,72 @@ static void free_table(struct partition_table t)
     free(t.partition);
 }
 
+static float human_number(long long x)
+{
+    float n = x;
+    while (n > 1024)
+        n /= 1024;
+    return n;
+}
+static char *human_units(long long x)
+{
+    char *units[] = { "B", "KB", "MB", "GB", "TB", "PB", "EB" };
+    for (char **u = units; ; x /= 1024, u++)
+        if (x < 1024)
+            return *u;
+}
+#define human_format(x) human_number(x), human_units(x)
+
+static int command_print(char **arg)
+{
+    printf("%s:\n", g_table.dev->name);
+    printf("  Disk GUID: %s\n", guid_str(g_table.header->disk_guid));
+    printf("  %lld %ld byte sectors for %lld total bytes (%.2f %s capacity)\n",
+           g_table.dev->sector_count,  g_table.dev->sector_size,
+           g_table.dev->sector_count * g_table.dev->sector_size,
+           human_format(g_table.dev->sector_count * g_table.dev->sector_size));
+    printf("  MBR partition table is %s synced to the GPT table\n", g_table.options.mbr_sync ? "currently" : "not");
+    printf("\n    %3s) %14s %14s %26s %s\n", "###", "Start LBA", "End LBA", "Size", "GUID");
+    printf("    %.98s\n", "----------------------------------------------------------------------------------------------------------------");
+    for (int i=0; i<g_table.header->partition_entries; i++) {
+        if (memcmp(gpt_partition_type_empty, g_table.partition[i].partition_type, sizeof(gpt_partition_type_empty)) == 0)
+            continue;
+        printf("    %3d) %14lld %14lld %14lld (%6.2f %2s) %s\n", i,
+               g_table.partition[i].first_lba, g_table.partition[i].last_lba,
+               (g_table.partition[i].last_lba - g_table.partition[i].first_lba) * g_table.dev->sector_size,
+               human_format((g_table.partition[i].last_lba - g_table.partition[i].first_lba) * g_table.dev->sector_size),
+               guid_str(g_table.partition[i].partition_guid));
+    }
+    printf("\n    %3s) %-20s %s %-3s %-26s\n", "###", "Flags", "B", "MBR", "GPT Type");
+    printf("    %.98s\n", "----------------------------------------------------------------------------------------------------------------");
+    for (int i=0; i<g_table.header->partition_entries; i++) {
+        if (memcmp(gpt_partition_type_empty, g_table.partition[i].partition_type, sizeof(gpt_partition_type_empty)) == 0)
+            continue;
+        printf("    %3d) %-20s ", i, "none");
+        if (g_table.options.mbr_sync) {
+            for (int m=0; m<lengthof(g_table.alias); m++)
+                if (g_table.alias[m] == i) {
+                    printf("%1s %02x  ", g_table.mbr.partition[m].status & MBR_STATUS_BOOTABLE ? "*" : "",
+                           g_table.mbr.partition[m].partition_type);
+                    goto mbr_printed;
+                }
+        }
+        printf("%1s %3s ","","");
+      mbr_printed:;
+        int found=0;
+        for (int t=0; gpt_partition_type[t].name; t++)
+            if (memcmp(gpt_partition_type[t].guid, g_table.partition[i].partition_type, sizeof(g_table.partition[i].partition_type)) == 0) {
+                printf("%s%s", found ? " or " : "", gpt_partition_type[t].name);
+                found = 1;
+            }
+        if (!found)
+            printf("%s", guid_str(g_table.partition[i].partition_type));
+        printf("\n");
+    }
+    return 0;
+}
+command_add("print", command_print, "Print the partition table.");
+
 void dump_dev(struct device *dev)
 {
     printf("dev.sector_size: %ld\n", dev->sector_size);
