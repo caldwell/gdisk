@@ -49,6 +49,23 @@ int main(int c, char **v)
 
     struct mbr mbr = read_mbr(dev);
 
+    int mbr_sync = true;
+    int alias[lengthof(mbr.partition)] = { [0 ... 3] = -1 };
+    for (int mp=0; mp<lengthof(mbr.partition); mp++) {
+        for (int gp=0; gp<header->partition_entries; gp++)
+            if (mbr.partition[mp].partition_type &&
+                table[gp].part.first_lba < 0x100000000LL &&
+                table[gp].part.last_lba  < 0x100000000LL &&
+                (mbr.partition[mp].first_sector_lba == table[gp].part.first_lba ||
+                 // first partition could be type EE which covers the GPT partition table and the optional EFI filesystem.
+                 // The EFI filesystem in the GPT doesn't cover the EFI partition table, so the starts might not line up.
+                 mbr.partition[mp].first_sector_lba == 1 && mbr.partition[mp].partition_type == 0xee) &&
+                mbr.partition[mp].first_sector_lba + mbr.partition[mp].sectors == table[gp].part.last_lba + 1)
+                alias[mp] = gp;
+        if (alias[mp] == -1)
+            mbr_sync = false;
+    }
+
     dump_mbr(mbr);
     dump_dev(dev);
     dump_header(header);
