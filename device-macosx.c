@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/disk.h>
 #include <err.h>
 #include "device.h"
@@ -46,6 +47,7 @@ struct device *open_device(char *name)
         err(ENOMEM, "No memory for device structure");
     }
     dev->fd = fd;
+    dev->dev.name = strdup(name);
     dev->dev.sector_count = sector_count(fd);
     dev->dev.sector_size = sector_size(fd);
     return &dev->dev;
@@ -55,6 +57,7 @@ void close_device(struct device *dev)
 {
     struct device_macosx *macosx = (struct device_macosx *)dev;
     close(macosx->fd);
+    free(dev->name);
     free(macosx);
 }
 

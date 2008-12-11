@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 struct device {
+    char *name;
     unsigned long sector_size;
     unsigned long long sector_count;
 };
