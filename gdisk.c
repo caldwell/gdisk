@@ -12,7 +12,6 @@
 #include "gpt.h"
 #include "mbr.h"
 
-void *get_sectors(struct device *dev, unsigned long sector, unsigned long sectors);
 void dump_dev(struct device *dev);
 void dump_header(struct gpt_header *header);
 void dump_partition(struct gpt_partition *p);
