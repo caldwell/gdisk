@@ -100,7 +100,11 @@ int main(int c, char **v)
                     for (int a=0; a<args; a++)
                         free(argv[a]);
                 free(argv);
+                goto found;
             }
+        if (*l)
+            printf("Command not found: %s\n", l);
+      found:
         free(line);
     }
     if (line)
