@@ -93,6 +93,8 @@ int main(int c, char **v)
                 }
 
                 int status = c->handler(argv);
+                if (status == ECANCELED) // Special case meaning Quit!
+                    goto quit;
                 if (status)
                     warnc(status, "%s failed", c->name);
               done:
@@ -107,6 +109,8 @@ int main(int c, char **v)
       found:
         free(line);
     }
+    printf("\nQuitting without saving changes.\n");
+  quit:
     if (line)
         free(line);
 
@@ -136,6 +140,13 @@ static int help(char **arg)
     return 0;
 }
 command_add("help", help, "Show a list of commands");
+
+static int quit(char **arg)
+{
+    printf("Quitting without saving changes.\n");
+    return ECANCELED; // total special case. Weak.
+}
+command_add("quit", quit, "Quit, leaving the disk untouched.");
 
 void dump_dev(struct device *dev)
 {
