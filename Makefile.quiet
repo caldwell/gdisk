@@ -1,0 +1,21 @@
+#  Copyright (c) 2008 David Caldwell,  All Rights Reserved. -*- makefile -*-
+
+# You *must* define TARGETS in your makefile before including this. It
+# should contain the list of executables that need to be linked.
+
+# "make V=1" to see the make commands.
+Q=$(if $V,,@)
+ifeq ($V,)
+_CC:=$(CC)
+%.o: override CC=$(Q)printf "%15s  %s\n" "Compiling" $<; $(_CC)
+_CXX:=$(CXX)
+%.o: override CXX=$(Q)printf "%15s  %s\n" "Compiling" $<; $(_CXX)
+_FC:=$(FC)
+%.o: override FC=$(Q)printf "%15s  %s\n" "Compiling" $<; $(_FC)
+_AS:=$(AS)
+%.o: override AS=$(Q)printf "%15s  %s\n" "Assembling" $<; $(_AS)
+_AR:=$(AR)
+%.a: override AR=$(Q)printf "%15s  %s\n" "Archiving" $@; $(_AR)
+$(TARGETS):override CC=$(Q)printf "%15s  %s\n" "Linking" $(@); $(_CC)
+$(TARGETS):override CXX=$(Q)printf "%15s  %s\n" "Linking" $(@); $(_CXX)
+endif
