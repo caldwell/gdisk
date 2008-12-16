@@ -29,11 +29,11 @@ struct mbr read_mbr(struct device *dev)
         p->status                = mbr_buf[po + 0];
         p->first_sector.head     = mbr_buf[po + 1];
         p->first_sector.sector   = mbr_buf[po + 2] & 0x3f;
-        p->first_sector.cylinder = (mbr_buf[po + 2] & 0xc) << 2 | mbr_buf[po + 3];
+        p->first_sector.cylinder = (mbr_buf[po + 2] & 0xc0) << 2 | mbr_buf[po + 3];
         p->partition_type        = mbr_buf[po + 4];
         p->last_sector.head      = mbr_buf[po + 5];
         p->last_sector.sector    = mbr_buf[po + 6] & 0x3f;
-        p->last_sector.cylinder  = (mbr_buf[po + 6] & 0xc) << 2 | mbr_buf[po + 7];
+        p->last_sector.cylinder  = (mbr_buf[po + 6] & 0xc0) << 2 | mbr_buf[po + 7];
         p->first_sector_lba      = le4(mbr_buf, po + 8);
         p->sectors               = le4(mbr_buf, po + 12);
     }
@@ -75,7 +75,7 @@ bool write_mbr(struct device *dev, struct mbr mbr)
         mbr_buf[po + 15] = p->sectors >> 24 & 0xff;
     }
     mbr_buf[510] = mbr.mbr_signature >> 0 & 0xff;
-    mbr_buf[511] = mbr.mbr_signature >> 0 & 0xff;
+    mbr_buf[511] = mbr.mbr_signature >> 8 & 0xff;
     return device_write(dev, mbr_buf, 1, 0);
 }
 
