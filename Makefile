@@ -11,7 +11,7 @@ gdisk: gdisk.o guid.o mbr.o device.o autolist.o device-macosx.o
 
 clean:
 	rm -f *.o
-	rm -f gdisk
+	rm -f $(TARGETS)
 
 -include *.d
 
