@@ -20,9 +20,9 @@ autolist_define(command);
 
 static struct partition_table read_table(struct device *dev);
 static void free_table(struct partition_table t);
-void dump_dev(struct device *dev);
-void dump_header(struct gpt_header *header);
-void dump_partition(struct gpt_partition *p);
+static void dump_dev(struct device *dev);
+static void dump_header(struct gpt_header *header);
+static void dump_partition(struct gpt_partition *p);
 
 static void usage(char *me, int exit_code)
 {
@@ -220,7 +220,7 @@ static int command_print(char **arg)
 }
 command_add("print", command_print, "Print the partition table.");
 
-void dump_dev(struct device *dev)
+static void dump_dev(struct device *dev)
 {
     printf("dev.sector_size: %ld\n", dev->sector_size);
     printf("dev.sector_count: %lld\n", dev->sector_count);
@@ -233,7 +233,7 @@ static int command_dump_dev(char **arg)
 }
 command_add("debug-dump-dev", command_dump_dev, "Dump device structure");
 
-void dump_header(struct gpt_header *header)
+static void dump_header(struct gpt_header *header)
 {
     printf("signature[8]         = %.8s\n", header->signature);
     printf("revision             = %08x\n", header->revision);
@@ -259,7 +259,7 @@ static int command_dump_header(char **arg)
 command_add("debug-dump-gpt-header", command_dump_header, "Dump GPT header structure",
             "alt", C_Flag);
 
-void dump_partition(struct gpt_partition *p)
+static void dump_partition(struct gpt_partition *p)
 {
     printf("partition_type = %s\n",   guid_str(p->partition_type));
     for (int i=0; gpt_partition_type[i].name; i++)
