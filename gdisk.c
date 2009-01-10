@@ -22,6 +22,7 @@ static struct partition_table read_table(struct device *dev);
 static void free_table(struct partition_table t);
 static char *command_completion(const char *text, int state);
 static char *partition_type_completion(const char *text, int state);
+static unsigned long partition_sectors(struct partition_table t);
 static void dump_dev(struct device *dev);
 static void dump_header(struct gpt_header *header);
 static void dump_partition(struct gpt_partition *p);
@@ -236,6 +237,11 @@ static void free_table(struct partition_table t)
     free(t.header);
     free(t.alt_header);
     free(t.partition);
+}
+
+static unsigned long partition_sectors(struct partition_table t)
+{
+    return divide_round_up(t.header->partition_entry_size * t.header->partition_entries, t.dev->sector_size);
 }
 
 static float human_number(long long x)
