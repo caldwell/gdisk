@@ -21,6 +21,7 @@ autolist_define(command);
 static struct partition_table read_table(struct device *dev);
 static void free_table(struct partition_table t);
 static char *command_completion(const char *text, int state);
+static char *partition_type_completion(const char *text, int state);
 static void dump_dev(struct device *dev);
 static void dump_header(struct gpt_header *header);
 static void dump_partition(struct gpt_partition *p);
@@ -76,6 +77,8 @@ int main(int c, char **v)
 
                     if (C_Type(c->arg[a].type) == C_File)
                         rl_completion_entry_function = (void*)filename_completion_function;
+                    else if (C_Type(c->arg[a].type) == C_Partition_Type)
+                        rl_completion_entry_function = (void*)partition_type_completion;
 
                     *v = readline(prompt);
                     if (!*v) goto done;
@@ -141,6 +144,15 @@ static char *command_completion(const char *text, int state)
         if (strncmp(text, c->name, strlen(text)) == 0 &&
             i++ == state)
             return xstrdup(c->name);
+    return NULL;
+}
+
+static char *partition_type_completion(const char *text, int state)
+{
+    for (int i=0; gpt_partition_type[i].name; i++)
+        if (strncmp(text, gpt_partition_type[i].name, strlen(text)) == 0 &&
+            i++ == state)
+            return xstrdup(gpt_partition_type[i].name);
     return NULL;
 }
 
