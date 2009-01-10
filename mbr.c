@@ -16,10 +16,10 @@ struct mbr init_mbr(struct device *dev)
 #define le2(a, o) ((a)[o] << 0 | (a)[(o)+1] << 8)
 #define le4(a, o) (le2(a,o) | (a)[(o)+2] << 16 | (a)[(o)+3] << 24)
 
-struct mbr read_mbr(struct device *dev)
+struct mbr mbr_from_sector(void *sector)
 {
     struct mbr mbr;
-    unsigned char *mbr_buf = get_sectors(dev, 0, 1);
+    unsigned char *mbr_buf = sector;
     memcpy(mbr.code, mbr_buf, sizeof(mbr.code));
     mbr.disk_signature = le4(mbr_buf, 440);
     mbr.unused         = le2(mbr_buf, 444);
@@ -42,7 +42,7 @@ struct mbr read_mbr(struct device *dev)
     return mbr;
 }
 
-bool write_mbr(struct device *dev, struct mbr mbr)
+void *sector_from_mbr(struct device *dev, struct mbr mbr)
 {
     unsigned char *mbr_buf = alloc_sectors(dev, 1);
     memcpy(mbr_buf, mbr.code, sizeof(mbr.code));
@@ -76,7 +76,19 @@ bool write_mbr(struct device *dev, struct mbr mbr)
     }
     mbr_buf[510] = mbr.mbr_signature >> 0 & 0xff;
     mbr_buf[511] = mbr.mbr_signature >> 8 & 0xff;
-    return device_write(dev, mbr_buf, 1, 0);
+    return mbr_buf;
+}
+
+struct mbr read_mbr(struct device *dev)
+{
+    void *sector = get_sectors(dev, 0, 1);
+    return mbr_from_sector(sector);
+}
+
+bool write_mbr(struct device *dev, struct mbr mbr)
+{
+    void *sector = sector_from_mbr(dev, mbr);
+    return device_write(dev, sector, 1, 0);
 }
 
 #include <stdio.h>
