@@ -198,6 +198,11 @@ static struct partition_table read_table(struct device *dev)
     t.dev = dev;
     t.header = get_sectors(dev,1,1);
     t.alt_header = get_sectors(dev,t.header->alternate_lba,1);
+    gpt_header_to_host(t.header);
+    gpt_header_to_host(t.alt_header);
+
+#warning "assert(t.header->partition_entry_lba == 2)"
+
     if (memcmp(t.header->signature, "EFI PART", sizeof(t.header->signature)) != 0) {
         fprintf(stderr, "Missing signature in GPT header. Assuming blank partiton\n");
         free_table(t);
@@ -208,6 +213,7 @@ static struct partition_table read_table(struct device *dev)
         err(EINVAL, "Size of partition entries are %d instead of %d", t.header->partition_entry_size, sizeof(struct gpt_partition));
 
     t.partition = get_sectors(dev, 2, divide_round_up(t.header->partition_entry_size * t.header->partition_entries,dev->sector_size));
+    gpt_partition_to_host(t.partition, t.header->partition_entries);
 
     t.mbr = read_mbr(dev);
 
