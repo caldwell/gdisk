@@ -35,7 +35,8 @@ struct command {
 #define C_Flag      0x01
 #define C_Number    0x02
 #define C_String    0x03
-//#define C_Partition 0x04
+#define C_File      0x04
+#define C_Partition_Type 0x05
 
 #include "autolist.h"
 #define command_add(name, handler, help, ...) \
