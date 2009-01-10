@@ -61,8 +61,7 @@ int main(int c, char **v)
             if (strcasecmp(c->name, l) == 0) {
                 int args;
                 for (args=0; c->arg[args].name; args++) {}
-                char **argv = calloc(args, sizeof(*argv));
-                if (!argv) err(ENOMEM, "No memory for argument list");
+                char **argv = xcalloc(args+1, sizeof(*argv));
                 for (int a=0; a<args; a++) {
                     char *prompt = NULL;
                     asprintf(&prompt, "%s: %s> ", c->name, c->arg[a].name);
