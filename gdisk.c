@@ -156,12 +156,52 @@ static char *partition_type_completion(const char *text, int state)
     return NULL;
 }
 
+static struct partition_table blank_table(struct device *dev)
+{
+    struct partition_table t = {};
+    t.dev = dev;
+    t.header = alloc_sectors(dev, 1);
+    t.alt_header = alloc_sectors(dev, 1);
+    const int partitions = 128;
+    const int partition_sectors = divide_round_up(partitions * sizeof(struct gpt_partition), dev->sector_size);
+    memcpy(t.header,
+           &(struct gpt_header) {
+               .signature = "EFI PART",
+               .revision = PARTITION_REVISION,
+               .header_size = sizeof(struct gpt_header),
+               .my_lba = 1,
+               .alternate_lba = dev->sector_count-1,
+               .first_usable_lba = 2                  + partition_sectors,
+               .last_usable_lba = dev->sector_count-1 - partition_sectors,
+#warning "Implement new_guid()"
+//               .disk_guid = new_guid(),
+               .partition_entry_lba = 2,
+               .partition_entries = partitions,
+               .partition_entry_size = sizeof(struct gpt_partition),
+           },
+           sizeof(struct gpt_header));
+    memcpy(t.alt_header, t.header, sizeof(struct gpt_header));
+    uint32_t alt = t.alt_header->alternate_lba;
+    t.alt_header->alternate_lba = t.alt_header->my_lba;
+    t.alt_header->my_lba = alt;
+    t.partition = alloc_sectors(dev, partition_sectors);
+    // Even a blank MBR should preserve the boot code.
+    struct mbr mbr = read_mbr(dev);
+    memcpy(t.mbr.code, mbr.code, sizeof(mbr.code));
+    return t;
+}
+
 static struct partition_table read_table(struct device *dev)
 {
-    struct partition_table t;
+    struct partition_table t = {};
     t.dev = dev;
     t.header = get_sectors(dev,1,1);
     t.alt_header = get_sectors(dev,t.header->alternate_lba,1);
+    if (memcmp(t.header->signature, "EFI PART", sizeof(t.header->signature)) != 0) {
+        fprintf(stderr, "Missing signature in GPT header. Assuming blank partiton\n");
+        free_table(t);
+        return blank_table(dev);
+    }
 
     if (sizeof(struct gpt_partition) != t.header->partition_entry_size)
         err(EINVAL, "Size of partition entries are %d instead of %d", t.header->partition_entry_size, sizeof(struct gpt_partition));
