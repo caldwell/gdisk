@@ -25,6 +25,7 @@ static struct partition_table read_table(struct device *dev);
 static void free_table(struct partition_table t);
 static char *command_completion(const char *text, int state);
 static char *partition_type_completion(const char *text, int state);
+static struct partition_table dup_table(struct partition_table t);
 static unsigned long partition_sectors(struct partition_table t);
 static void backup_table();
 static void dump_dev(struct device *dev);
@@ -249,6 +250,16 @@ static void free_table(struct partition_table t)
     free(t.header);
     free(t.alt_header);
     free(t.partition);
+}
+
+static struct partition_table dup_table(struct partition_table t)
+{
+    struct partition_table dup;
+    dup = t;
+    dup.header = memdup(t.header, t.dev->sector_size);
+    dup.alt_header = memdup(t.alt_header, t.dev->sector_size);
+    dup.partition = memdup(t.partition, partition_sectors(t) * t.dev->sector_size);
+    return dup;
 }
 
 static unsigned long partition_sectors(struct partition_table t)
