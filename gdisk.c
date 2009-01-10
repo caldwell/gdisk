@@ -20,6 +20,7 @@ autolist_define(command);
 
 static struct partition_table read_table(struct device *dev);
 static void free_table(struct partition_table t);
+static char *command_completion(const char *text, int state);
 static void dump_dev(struct device *dev);
 static void dump_header(struct gpt_header *header);
 static void dump_partition(struct gpt_partition *p);
@@ -53,6 +54,7 @@ int main(int c, char **v)
     g_table = read_table(dev);
 
     char *line;
+    rl_completion_entry_function = (void*)command_completion; // rl_completion_entry_function is defined to return an int??
     while (line = readline("gdisk> ")) {
         add_history(line);
         char *l = line;
@@ -117,6 +119,16 @@ static int quit(char **arg)
     return ECANCELED; // total special case. Weak.
 }
 command_add("quit", quit, "Quit, leaving the disk untouched.");
+
+static char *command_completion(const char *text, int state)
+{
+    int i=0;
+    foreach_autolist(struct command *c, command)
+        if (strncmp(text, c->name, strlen(text)) == 0 &&
+            i++ == state)
+            return xstrdup(c->name);
+    return NULL;
+}
 
 static struct partition_table read_table(struct device *dev)
 {
