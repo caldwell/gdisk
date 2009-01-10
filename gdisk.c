@@ -54,8 +54,11 @@ int main(int c, char **v)
     g_table = read_table(dev);
 
     char *line;
-    rl_completion_entry_function = (void*)command_completion; // rl_completion_entry_function is defined to return an int??
-    while (line = readline("gdisk> ")) {
+    while (1) {
+        rl_completion_entry_function = (void*)command_completion; // rl_completion_entry_function is defined to return an int??
+        line = readline("gdisk> ");
+        if (!line)
+            break;
         add_history(line);
         char *l = line;
         while (isspace(*l)) l++;
@@ -70,6 +73,10 @@ int main(int c, char **v)
                     char *prompt = NULL;
                     asprintf(&prompt, "%s: %s ", c->name, c->arg[a].help);
                     if (!prompt) err(ENOMEM, "No memory for argument prompt");
+
+                    if (C_Type(c->arg[a].type) == C_File)
+                        rl_completion_entry_function = (void*)filename_completion_function;
+
                     *v = readline(prompt);
                     if (!*v) goto done;
                     free(prompt);
