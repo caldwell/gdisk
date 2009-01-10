@@ -62,12 +62,14 @@ int main(int c, char **v)
                 int args;
                 for (args=0; c->arg[args].name; args++) {}
                 char **argv = xcalloc(args+1, sizeof(*argv));
-                for (int a=0; a<args; a++) {
+                char **v = argv;
+                *v++ = xstrdup(c->name);
+                for (int a=0; a<args; a++, v++) {
                     char *prompt = NULL;
                     asprintf(&prompt, "%s: %s> ", c->name, c->arg[a].name);
                     if (!prompt) err(ENOMEM, "No memory for argument prompt");
-                    argv[a] = readline(prompt);
-                    if (!argv[a]) goto done;
+                    *v = readline(prompt);
+                    if (!*v) goto done;
                     free(prompt);
                 }
 
@@ -257,7 +259,7 @@ static void dump_header(struct gpt_header *header)
 
 static int command_dump_header(char **arg)
 {
-    dump_header(arg[0] ? g_table.alt_header : g_table.header);
+    dump_header(arg[1] ? g_table.alt_header : g_table.header);
     return 0;
 }
 command_add("debug-dump-gpt-header", command_dump_header, "Dump GPT header structure",
