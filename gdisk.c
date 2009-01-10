@@ -164,7 +164,7 @@ static struct partition_table read_table(struct device *dev)
     t.alt_header = get_sectors(dev,t.header->alternate_lba,1);
 
     if (sizeof(struct gpt_partition) != t.header->partition_entry_size)
-        err(0, "Size of partition entries are %d instead of %d", t.header->partition_entry_size, sizeof(struct gpt_partition));
+        err(EINVAL, "Size of partition entries are %d instead of %d", t.header->partition_entry_size, sizeof(struct gpt_partition));
 
     t.partition = get_sectors(dev, 2, divide_round_up(t.header->partition_entry_size * t.header->partition_entries,dev->sector_size));
 
