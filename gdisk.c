@@ -304,6 +304,13 @@ static int export_table(struct partition_table t, char *filename)
     return err;
 }
 
+int command_export(char **arg)
+{
+    return export_table(g_table, arg[1]);
+}
+command_add("export", command_export, "Save table to a file (not to a device)",
+            "filename", C_File, "Enter filename:");
+
 static float human_number(long long x)
 {
     float n = x;
