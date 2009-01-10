@@ -5,6 +5,8 @@
 #include <string.h>
 #include <wchar.h>
 #include <errno.h>
+#include <sys/param.h> // PATH_MAX on both linux and OS X
+#include <sys/stat.h>  // mkdir
 #include <err.h>
 #include <readline/readline.h>
 #include "lengthof.h"
@@ -24,6 +26,7 @@ static void free_table(struct partition_table t);
 static char *command_completion(const char *text, int state);
 static char *partition_type_completion(const char *text, int state);
 static unsigned long partition_sectors(struct partition_table t);
+static void backup_table();
 static void dump_dev(struct device *dev);
 static void dump_header(struct gpt_header *header);
 static void dump_partition(struct gpt_partition *p);
@@ -42,6 +45,7 @@ static void usage(char *me, int exit_code)
     exit(exit_code);
 }
 
+struct partition_table g_table_orig;
 struct partition_table g_table;
 
 int main(int c, char **v)
@@ -54,6 +58,7 @@ int main(int c, char **v)
     if (!dev)
         err(0, "Couldn't find device %s", v[1]);
 
+    g_table_orig = read_table(dev);
     g_table = read_table(dev);
 
     char *line;
@@ -310,6 +315,32 @@ int command_export(char **arg)
 }
 command_add("export", command_export, "Save table to a file (not to a device)",
             "filename", C_File, "Enter filename:");
+
+
+static void backup_table()
+{
+    char *HOME = getenv("HOME");
+    if (!HOME) return;
+
+    char *dev_name = xstrdup(g_table_orig.dev->name);
+
+    for (int i=0; dev_name[i]; i++)
+        if (!isalnum(dev_name[i]))
+            dev_name[i] = '_';
+
+    char backup_path[PATH_MAX];
+    snprintf(backup_path, sizeof(backup_path), "%s/.gdisk", HOME);
+    mkdir(backup_path, 0777);
+    sncatprintf(backup_path, sizeof(backup_path), "/backups");
+    mkdir(backup_path, 0777);
+    sncatprintf(backup_path, sizeof(backup_path), "/%s", dev_name);
+    time_t now = time(NULL);
+    strftime(backup_path + strlen(backup_path), sizeof(backup_path) - strlen(backup_path),
+             "-%G-%m-%d-%H-%M-%S", localtime(&now));
+
+    fprintf(stderr, "backing up current partition table to %s\n", backup_path);
+    export_table(g_table_orig, backup_path);
+}
 
 static float human_number(long long x)
 {
