@@ -68,7 +68,7 @@ int main(int c, char **v)
                 *v++ = xstrdup(c->name);
                 for (int a=0; a<args; a++, v++) {
                     char *prompt = NULL;
-                    asprintf(&prompt, "%s: %s> ", c->name, c->arg[a].name);
+                    asprintf(&prompt, "%s: %s ", c->name, c->arg[a].help);
                     if (!prompt) err(ENOMEM, "No memory for argument prompt");
                     *v = readline(prompt);
                     if (!*v) goto done;
@@ -282,7 +282,7 @@ static int command_dump_header(char **arg)
     return 0;
 }
 command_add("debug-dump-gpt-header", command_dump_header, "Dump GPT header structure",
-            "alt", C_Flag);
+            "alt", C_Flag, "Display the alternate partition header?");
 
 static void dump_partition(struct gpt_partition *p)
 {

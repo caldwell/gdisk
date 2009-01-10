@@ -20,6 +20,7 @@ extern struct partition_table g_table;
 struct command_arg {
     char *name;
     int type;
+    char *help;
 };
 struct command {
     char *name;
@@ -38,7 +39,7 @@ struct command {
 
 #include "autolist.h"
 #define command_add(name, handler, help, ...) \
-    static struct command_arg Unique(__command_arg__)[] = { NULL, 0, ##__VA_ARGS__, NULL, 0 }; \
+    static struct command_arg Unique(__command_arg__)[] = { NULL, 0, NULL, ##__VA_ARGS__, NULL, 0, NULL }; \
     static struct command Unique(__command__) = { name, handler, help, &Unique(__command_arg__)[1] }; \
     autolist_add(command, &Unique(__command__))
 
