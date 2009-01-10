@@ -7,7 +7,7 @@
 
 void *alloc_sectors(struct device *dev, unsigned long sectors)
 {
-    char *data = malloc(dev->sector_size * sectors);
+    char *data = calloc(sectors, dev->sector_size);
     if (!data)
         err(0, "Couldn't allocate memory for %ld sectors (%ld bytes)", sectors, dev->sector_size * sectors);
     return data;
