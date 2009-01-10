@@ -43,5 +43,35 @@ struct gpt_partition {
 #define PA_HIDDEN           (1LL << 62)
 #define PA_NO_AUTOMOUNT     (1LL << 63)
 
+#include "endian.h"
+static inline void gpt_header_to_host(struct gpt_header *h) {
+    h->revision             = from_le32(h->revision);
+    h->header_size          = from_le32(h->header_size);
+    h->header_crc32         = from_le32(h->header_crc32);
+    h->reserved             = from_le32(h->reserved);
+    h->my_lba               = from_le64(h->my_lba);
+    h->alternate_lba        = from_le64(h->alternate_lba);
+    h->first_usable_lba     = from_le64(h->first_usable_lba);
+    h->last_usable_lba      = from_le64(h->last_usable_lba);
+    h->partition_entry_lba  = from_le64(h->partition_entry_lba);
+    h->partition_entries    = from_le32(h->partition_entries);
+    h->partition_entry_size = from_le32(h->partition_entry_size);
+    h->partition_crc        = from_le32(h->partition_crc);
+}
+
+static inline void gpt_partition_to_host(struct gpt_partition *partition, int entries) {
+    for (int p=0; p<entries; p++) {
+        partition[p].first_lba = from_le64(partition[p].first_lba);
+        partition[p].last_lba = from_le64(partition[p].last_lba);
+        partition[p].attributes = from_le64(partition[p].attributes);
+        for (int i=0; i<lengthof(partition[p].name); i++)
+            partition[p].name[i] = from_le16(partition[p].name[i]);
+    }
+}
+
+// No use in repeating the whole thing when it's going to turn out exactly the same.
+#define gpt_partition_from_host gpt_partition_to_host
+#define gpt_header_from_host    gpt_header_to_host
+
 #endif /* __GPT_H__ */
 
