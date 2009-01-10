@@ -23,6 +23,11 @@ static void free_table(struct partition_table t);
 static void dump_dev(struct device *dev);
 static void dump_header(struct gpt_header *header);
 static void dump_partition(struct gpt_partition *p);
+static void *xmalloc(size_t size);
+static void *xcalloc(size_t count, size_t size);
+static char *xstrdup(char *s);
+static void *memdup(void *mem, size_t size);
+static size_t sncatprintf(char *buffer, size_t space, char *format, ...) __attribute__ ((format (printf, 3, 4)));
 
 static void usage(char *me, int exit_code)
 {
@@ -293,3 +298,39 @@ static int command_dump_mbr(char **arg)
     return 0;
 }
 command_add("debug-dump-mbr", command_dump_mbr, "Dump MBR structure");
+
+// Some useful library routines. Should maybe go in another file at some point.
+static void *xmalloc(size_t size)
+{
+    void *mem = malloc(size);
+    if (!mem) err(errno, "Out of memory");
+    return mem;
+}
+static void *xcalloc(size_t count, size_t size)
+{
+    void *mem = calloc(count, size);
+    if (!mem) err(errno, "Out of memory");
+    return mem;
+}
+static char *xstrdup(char *s)
+{
+    char *dup = strdup(s);
+    if (!dup) err(errno, "Out of memory");
+    return dup;
+}
+static void *memdup(void *mem, size_t size)
+{
+    void *dup = xmalloc(size);
+    memcpy(dup, mem, size);
+    return dup;
+}
+
+static size_t sncatprintf(char *buffer, size_t space, char *format, ...)
+{
+    va_list ap;
+    va_start(ap, format);
+    size_t length = strlen(buffer);
+    int count = vsnprintf(buffer + length, space - length, format, ap);
+    va_end(ap);
+    return count;
+}
