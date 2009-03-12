@@ -7,7 +7,7 @@ TARGETS = gdisk
 
 all: $(TARGETS)
 
-gdisk: gdisk.o guid.o mbr.o device.o autolist.o csprintf.o device-macosx.o
+gdisk: gdisk.o guid.o mbr.o device.o autolist.o csprintf.o device-$(shell uname -s | sed -e s/Linux/linux/ -e s/Darwin/macosx/).o
 
 clean:
 	rm -f *.o
