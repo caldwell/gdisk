@@ -53,7 +53,7 @@ int main(int c, char **v)
 {
     char *device_name = v[1];
     if (!device_name)
-        usage(v[1], 1);
+        usage(v[0], 1);
 
     struct device *dev = open_device(device_name);
     if (!dev)
