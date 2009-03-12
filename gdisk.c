@@ -9,6 +9,7 @@
 #include <sys/stat.h>  // mkdir
 #include <err.h>
 #include <readline/readline.h>
+#include <readline/history.h>
 #include "lengthof.h"
 #include "round.h"
 #include "guid.h"
