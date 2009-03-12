@@ -86,7 +86,7 @@ int main(int c, char **v)
                     if (!prompt) err(ENOMEM, "No memory for argument prompt");
 
                     if (C_Type(c->arg[a].type) == C_File)
-                        rl_completion_entry_function = (void*)filename_completion_function;
+                        rl_completion_entry_function = (void*)rl_filename_completion_function;
                     else if (C_Type(c->arg[a].type) == C_Partition_Type)
                         rl_completion_entry_function = (void*)partition_type_completion;
 
