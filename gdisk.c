@@ -5,6 +5,7 @@
 #include <string.h>
 #include <wchar.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <sys/param.h> // PATH_MAX on both linux and OS X
 #include <sys/stat.h>  // mkdir
 #include <err.h>
@@ -311,7 +312,7 @@ static int export_table(struct partition_table t, char *filename)
     fprintf(info, "# device: %s\n", t.dev->name);
     fprintf(info, "# dd if=%s of=%s bs=%ld count=%ld\n",
             csprintf("%s.front", filename), t.dev->name, t.dev->sector_size, 1+1+partition_sectors(t));
-    fprintf(info, "# dd if=%s of=%s seek=%lld bs=%ld count=%ld\n",
+    fprintf(info, "# dd if=%s of=%s seek=%"PRId64" bs=%ld count=%ld\n",
             csprintf("%s.back", filename), t.dev->name, t.alt_header->partition_entry_lba, t.dev->sector_size, 1+partition_sectors(t));
 
   done:
@@ -384,7 +385,7 @@ static int command_print(char **arg)
     for (int i=0; i<g_table.header->partition_entries; i++) {
         if (memcmp(gpt_partition_type_empty, g_table.partition[i].partition_type, sizeof(gpt_partition_type_empty)) == 0)
             continue;
-        printf("    %3d) %14lld %14lld %14lld (%6.2f %2s) %s\n", i,
+        printf("    %3d) %14"PRId64" %14"PRId64" %14"PRId64" (%6.2f %2s) %s\n", i,
                g_table.partition[i].first_lba, g_table.partition[i].last_lba,
                (g_table.partition[i].last_lba - g_table.partition[i].first_lba) * g_table.dev->sector_size,
                human_format((g_table.partition[i].last_lba - g_table.partition[i].first_lba) * g_table.dev->sector_size),
@@ -440,12 +441,12 @@ static void dump_header(struct gpt_header *header)
     printf("header_size          = %d\n",   header->header_size);
     printf("header_crc32         = %08x\n", header->header_crc32);
     printf("reserved             = %08x\n", header->reserved);
-    printf("my_lba               = %lld\n", header->my_lba);
-    printf("alternate_lba        = %lld\n", header->alternate_lba);
-    printf("first_usable_lba     = %lld\n", header->first_usable_lba);
-    printf("last_usable_lba      = %lld\n", header->last_usable_lba);
+    printf("my_lba               = %"PRId64"\n", header->my_lba);
+    printf("alternate_lba        = %"PRId64"\n", header->alternate_lba);
+    printf("first_usable_lba     = %"PRId64"\n", header->first_usable_lba);
+    printf("last_usable_lba      = %"PRId64"\n", header->last_usable_lba);
     printf("disk_guid            = %s\n",   guid_str(header->disk_guid));
-    printf("partition_entry_lba  = %lld\n", header->partition_entry_lba);
+    printf("partition_entry_lba  = %"PRId64"\n", header->partition_entry_lba);
     printf("partition_entries    = %d\n",   header->partition_entries);
     printf("partition_entry_size = %d\n",   header->partition_entry_size);
     printf("partition_crc        = %08x\n", header->partition_crc);
@@ -466,9 +467,9 @@ static void dump_partition(struct gpt_partition *p)
         if (memcmp(gpt_partition_type[i].guid, p->partition_type, sizeof(p->partition_type)) == 0)
             printf("      * %s\n", gpt_partition_type[i].name);
     printf("partition_guid = %s\n",   guid_str(p->partition_guid));
-    printf("first_lba      = %lld\n", p->first_lba);
-    printf("last_lba       = %lld\n",  p->last_lba);
-    printf("attributes     = %016llx\n", p->attributes);
+    printf("first_lba      = %"PRId64"\n", p->first_lba);
+    printf("last_lba       = %"PRId64"\n",  p->last_lba);
+    printf("attributes     = %016"PRIx64"\n", p->attributes);
     wchar_t name[36];
     for (int i=0; i<lengthof(name); i++)
         name[i] = p->name[i];
