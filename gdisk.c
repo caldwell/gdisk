@@ -327,7 +327,7 @@ int command_export(char **arg)
     return export_table(g_table, arg[1]);
 }
 command_add("export", command_export, "Save table to a file (not to a device)",
-            "filename", C_File, "Enter filename:");
+            command_arg("filename", C_File, "Enter filename:"));
 
 
 static void backup_table()
@@ -458,7 +458,7 @@ static int command_dump_header(char **arg)
     return 0;
 }
 command_add("debug-dump-gpt-header", command_dump_header, "Dump GPT header structure",
-            "alt", C_Flag, "Display the alternate partition header?");
+            command_arg("alt", C_Flag, "Display the alternate partition header?"));
 
 static void dump_partition(struct gpt_partition *p)
 {

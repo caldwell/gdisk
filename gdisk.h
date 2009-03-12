@@ -17,7 +17,7 @@ struct partition_table {
 // This is how you get to anything good.
 extern struct partition_table g_table;
 
-struct command_arg {
+struct command_arg_ {
     char *name;
     int type;
     char *help;
@@ -26,7 +26,7 @@ struct command {
     char *name;
     int (*handler)(char **arg);
     char *help;
-    struct command_arg *arg;
+    struct command_arg_ *arg;
 };
 
 #define C_Optional  0x80
@@ -39,8 +39,9 @@ struct command {
 #define C_Partition_Type 0x05
 
 #include "autolist.h"
+#define command_arg(name, type, help) { name, type, help }
 #define command_add(name, handler, help, ...) \
-    static struct command_arg Unique(__command_arg__)[] = { NULL, 0, NULL, ##__VA_ARGS__, NULL, 0, NULL }; \
+    static struct command_arg_ Unique(__command_arg__)[] = { command_arg(NULL, 0, NULL), ##__VA_ARGS__, command_arg(NULL, 0, NULL) }; \
     static struct command Unique(__command__) = { name, handler, help, &Unique(__command_arg__)[1] }; \
     autolist_add(command, &Unique(__command__))
 
