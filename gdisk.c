@@ -183,7 +183,7 @@ static struct partition_table blank_table(struct device *dev)
                .my_lba = 1,
                .alternate_lba = dev->sector_count-1,
                .first_usable_lba = 2                  + partition_sectors,
-               .last_usable_lba = dev->sector_count-1 - partition_sectors,
+               .last_usable_lba = dev->sector_count-2 - partition_sectors,
 #warning "Implement new_guid()"
 //               .disk_guid = new_guid(),
                .partition_entry_lba = 2,
