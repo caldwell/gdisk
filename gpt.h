@@ -23,7 +23,7 @@ struct gpt_header {
     uint32_t partition_entries;
     uint32_t partition_entry_size;
     uint32_t partition_crc;
-};
+} __attribute__((packed)); // odd number of 32bit items so 64bit machines might make this too big
 
 #define PARTITION_REVISION 0x00010000 // [2] 11-9.1
 
