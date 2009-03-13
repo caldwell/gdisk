@@ -246,9 +246,10 @@ static struct partition_table read_table(struct device *dev)
     for (int i=0; i<lengthof(t.mbr.partition); i++)
         t.alias[i] = -1;
     for (int mp=0; mp<lengthof(t.mbr.partition); mp++) {
+        if (!t.mbr.partition[mp].partition_type)
+            continue;
         for (int gp=0; gp<t.header->partition_entries; gp++)
-            if (t.mbr.partition[mp].partition_type &&
-                t.partition[gp].first_lba < 0x100000000LL &&
+            if (t.partition[gp].first_lba < 0x100000000LL &&
                 t.partition[gp].last_lba  < 0x100000000LL &&
                 (t.mbr.partition[mp].first_sector_lba == t.partition[gp].first_lba ||
                  // first partition could be type EE which covers the GPT partition table and the optional EFI filesystem.
