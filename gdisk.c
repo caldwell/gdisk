@@ -78,7 +78,7 @@ int main(int c, char **v)
             if (strcasecmp(c->name, l) == 0) {
                 int args;
                 for (args=0; c->arg[args].name; args++) {}
-                char **argv = xcalloc(args+1, sizeof(*argv));
+                char **argv = xcalloc(1+args+1, sizeof(*argv));
                 char **v = argv;
                 *v++ = xstrdup(c->name);
                 for (int a=0; a<args; a++, v++) {
@@ -110,7 +110,7 @@ int main(int c, char **v)
                     warnc(status, "%s failed", c->name);
               done:
                 if (argv)
-                    for (int a=0; a<args; a++)
+                    for (int a=0; a<1+args; a++)
                         free(argv[a]);
                 free(argv);
                 goto found;
