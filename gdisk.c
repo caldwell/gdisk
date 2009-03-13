@@ -209,26 +209,29 @@ static struct partition_table read_table(struct device *dev)
 
     t.header = get_sectors(dev,1,1);
 
-    if (memcmp(t.header->signature, "EFI PART", sizeof(t.header->signature)) != 0) {
-        fprintf(stderr, "Missing signature in GPT header. Assuming blank partiton\n");
-        free_table(t);
-        return blank_table(dev);
-    }
+#define header_error(format, ...) ({                        \
+            fprintf(stderr, format, ##__VA_ARGS__);         \
+            fprintf(stderr, ". Assuming blank partiton\n"); \
+            free_table(t);                                  \
+            blank_table(dev);                               \
+        })
+
+    if (memcmp(t.header->signature, "EFI PART", sizeof(t.header->signature)) != 0)
+        return header_error("Missing signature");
+
     gpt_header_to_host(t.header);
 
     t.alt_header = get_sectors(dev,t.header->alternate_lba,1);
 
-    if (memcmp(t.alt_header->signature, "EFI PART", sizeof(t.alt_header->signature)) != 0) {
-        fprintf(stderr, "Missing signature in altername GPT header. Assuming blank partiton\n");
-        free_table(t);
-        return blank_table(dev);
-    }
+    if (memcmp(t.alt_header->signature, "EFI PART", sizeof(t.alt_header->signature)) != 0)
+        return header_error("Missing signature in altername GPT header");
+
     gpt_header_to_host(t.alt_header);
 
 #warning "assert(t.header->partition_entry_lba == 2)"
 
     if (sizeof(struct gpt_partition) != t.header->partition_entry_size)
-        err(EINVAL, "Size of partition entries are %d instead of %td", t.header->partition_entry_size, sizeof(struct gpt_partition));
+        return header_error("Size of partition entries are %d instead of %zd", t.header->partition_entry_size, sizeof(struct gpt_partition));
 
     t.partition = get_sectors(dev, 2, divide_round_up(t.header->partition_entry_size * t.header->partition_entries,dev->sector_size));
     gpt_partition_to_host(t.partition, t.header->partition_entries);
