@@ -192,9 +192,8 @@ static struct partition_table blank_table(struct device *dev)
            },
            sizeof(struct gpt_header));
     memcpy(t.alt_header, t.header, sizeof(struct gpt_header));
-    uint32_t alt = t.alt_header->alternate_lba;
-    t.alt_header->alternate_lba = t.alt_header->my_lba;
-    t.alt_header->my_lba = alt;
+    t.alt_header->alternate_lba       = t.header->my_lba;
+    t.alt_header->my_lba              = t.header->alternate_lba;
     t.alt_header->partition_entry_lba = t.header->last_usable_lba + 1;
     t.partition = alloc_sectors(dev, partition_sectors);
     // Even a blank MBR should preserve the boot code.
