@@ -334,7 +334,7 @@ static int export_table(struct partition_table t, char *filename)
   done:
     if (front) fclose(front);
     if (back)  fclose(back);
-    if (info)  fclose(front);
+    if (info)  fclose(info);
     return err;
 }
 
