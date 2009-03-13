@@ -175,8 +175,7 @@ static struct partition_table blank_table(struct device *dev)
     t.alt_header = alloc_sectors(dev, 1);
     const int partitions = 128;
     const int partition_sectors = divide_round_up(partitions * sizeof(struct gpt_partition), dev->sector_size);
-    memcpy(t.header,
-           &(struct gpt_header) {
+    *t.header = (struct gpt_header) {
                .signature = "EFI PART",
                .revision = PARTITION_REVISION,
                .header_size = sizeof(struct gpt_header),
@@ -189,12 +188,13 @@ static struct partition_table blank_table(struct device *dev)
                .partition_entry_lba = 2,
                .partition_entries = partitions,
                .partition_entry_size = sizeof(struct gpt_partition),
-           },
-           sizeof(struct gpt_header));
-    memcpy(t.alt_header, t.header, sizeof(struct gpt_header));
+    };
+
+    *t.alt_header = *t.header;
     t.alt_header->alternate_lba       = t.header->my_lba;
     t.alt_header->my_lba              = t.header->alternate_lba;
     t.alt_header->partition_entry_lba = t.header->last_usable_lba + 1;
+
     t.partition = alloc_sectors(dev, partition_sectors);
     // Even a blank MBR should preserve the boot code.
     struct mbr mbr = read_mbr(dev);
