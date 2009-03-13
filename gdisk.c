@@ -220,6 +220,51 @@ static bool gpt_crc_valid(struct partition_table *t, struct gpt_header *h)
     return h->partition_crc32 == gpt_partition_crc32(h, t->partition) && h->header_crc32 == gpt_header_crc32(h);
 }
 
+static void utf16_from_ascii(uint16_t *utf16le, char *ascii)
+{
+    do {
+        *utf16le++ = *ascii;
+    } while (*ascii++);
+}
+
+static struct partition_table gpt_table_from_mbr(struct device *dev)
+{
+    struct partition_table t = blank_table(dev);
+    t.mbr = read_mbr(dev);
+    for (int mp=0,gp=0; mp<lengthof(t.mbr.partition); mp++) {
+        if (t.mbr.partition[mp].partition_type) {
+            t.partition[gp].first_lba = t.mbr.partition[mp].first_sector_lba;
+            t.partition[gp].last_lba  = t.mbr.partition[mp].first_sector_lba + t.mbr.partition[mp].sectors - 1;
+
+            if (t.partition[gp].first_lba < t.header->first_usable_lba ||
+                t.partition[gp].last_lba > t.header->last_usable_lba)
+                printf("ouch, mbr partition %d [%"PRId64"d,%"PRId64"d] outside of usable gpt space [%"PRId64"d,%"PRId64"d]\n",
+                       mp+1, t.partition[gp].first_lba, t.partition[gp].last_lba, t.header->first_usable_lba, t.header->last_usable_lba);
+
+            utf16_from_ascii(t.partition[gp].name, csprintf("MBR %d\n", mp+1));
+
+            switch (t.mbr.partition[mp].partition_type) {
+                case 0x83: memcpy(t.partition[gp].partition_type, (GUID) GUID(EBD0A0A2,B9E5,4433,87C0,68B6B72699C7), sizeof(GUID)); break;
+                case 0x82: memcpy(t.partition[gp].partition_type, (GUID) GUID(0657FD6D,A4AB,43C4,84E5,0933C84B4F4F), sizeof(GUID)); break;
+                default:   memcpy(t.partition[gp].partition_type, (GUID) GUID(024DEE41,33E7,11D3,9D69,0008C781F39F), sizeof(GUID)); break;
+            }
+            uuid_generate(t.partition[gp].partition_guid);
+            t.alias[mp] = gp++;
+        }
+    }
+    t.options.mbr_sync = true;
+    gpt_crc(&t, t.header);
+    gpt_crc(&t, t.alt_header);
+    return t;
+}
+static int gpt_from_mbr(char **arg)
+{
+    free_table(g_table);
+    g_table = gpt_table_from_mbr(g_table_orig.dev);
+    return 0;
+}
+command_add("init-from-mbr", gpt_from_mbr, "Init a GPT from the MBR");
+
 static struct partition_table read_table(struct device *dev)
 {
     struct partition_table t = {};
