@@ -116,7 +116,7 @@ int main(int c, char **v)
                 goto found;
             }
         if (*l)
-            printf("Command not found: %s\n", l);
+            printf("Command not found: '%s'\n", l);
       found:
         free(line);
     }
