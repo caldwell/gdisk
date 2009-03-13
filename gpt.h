@@ -22,7 +22,7 @@ struct gpt_header {
     uint64_t partition_entry_lba;
     uint32_t partition_entries;
     uint32_t partition_entry_size;
-    uint32_t partition_crc;
+    uint32_t partition_crc32;
 } __attribute__((packed)); // odd number of 32bit items so 64bit machines might make this too big
 
 #define PARTITION_REVISION 0x00010000 // [2] 11-9.1
@@ -56,7 +56,7 @@ static inline void gpt_header_to_host(struct gpt_header *h) {
     h->partition_entry_lba  = from_le64(h->partition_entry_lba);
     h->partition_entries    = from_le32(h->partition_entries);
     h->partition_entry_size = from_le32(h->partition_entry_size);
-    h->partition_crc        = from_le32(h->partition_crc);
+    h->partition_crc32      = from_le32(h->partition_crc32);
 }
 
 static inline void gpt_partition_to_host(struct gpt_partition *partition, int entries) {

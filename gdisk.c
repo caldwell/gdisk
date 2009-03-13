@@ -466,7 +466,7 @@ static void dump_header(struct gpt_header *header)
     printf("partition_entry_lba  = %"PRId64"\n", header->partition_entry_lba);
     printf("partition_entries    = %d\n",   header->partition_entries);
     printf("partition_entry_size = %d\n",   header->partition_entry_size);
-    printf("partition_crc        = %08x\n", header->partition_crc);
+    printf("partition_crc32      = %08x\n", header->partition_crc32);
 }
 
 static int command_dump_header(char **arg)
