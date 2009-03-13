@@ -167,6 +167,8 @@ static char *partition_type_completion(const char *text, int state)
     return NULL;
 }
 
+#include <uuid/uuid.h>
+
 static struct partition_table blank_table(struct device *dev)
 {
     struct partition_table t = {};
@@ -189,6 +191,7 @@ static struct partition_table blank_table(struct device *dev)
                .partition_entries = partitions,
                .partition_entry_size = sizeof(struct gpt_partition),
     };
+    uuid_generate(t.header->disk_guid);
 
     *t.alt_header = *t.header;
     t.alt_header->alternate_lba       = t.header->my_lba;
