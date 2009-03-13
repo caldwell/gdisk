@@ -23,7 +23,7 @@ static unsigned int sector_size(int fd)
     return size;
 }
 
-static unsigned long long sector_count(int fd)
+static unsigned long long byte_count(int fd)
 {
     uint64_t count;
     if (ioctl(fd, BLKGETSIZE64, &count) == -1)
@@ -49,8 +49,8 @@ struct device *open_device(char *name)
     }
     dev->fd = fd;
     dev->dev.name = strdup(name);
-    dev->dev.sector_count = sector_count(fd);
     dev->dev.sector_size = sector_size(fd);
+    dev->dev.sector_count = byte_count(fd)/dev->dev.sector_size;
     return &dev->dev;
 }
 
