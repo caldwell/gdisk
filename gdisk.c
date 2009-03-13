@@ -259,7 +259,7 @@ static struct partition_table read_table(struct device *dev)
     t.mbr = read_mbr(dev);
 
     t.options.mbr_sync = true;
-    for (int i=0; i<lengthof(t.mbr.partition); i++)
+    for (int i=0; i<lengthof(t.alias); i++)
         t.alias[i] = -1;
     for (int mp=0; mp<lengthof(t.mbr.partition); mp++) {
         if (!t.mbr.partition[mp].partition_type)
