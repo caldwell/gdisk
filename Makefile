@@ -4,13 +4,14 @@ PLATFORM := $(shell uname -s | sed -e s/Linux/linux/ -e s/Darwin/macosx/)
 DEBUG = -g
 CFLAGS += -MMD -std=gnu99 -Wall -Wno-parentheses $(DEBUG)
 LDFLAGS += $(DEBUG)
-LDLIBS += -lreadline -lz -luuid
 
 TARGETS = gdisk
 
 all: $(TARGETS)
 
 gdisk: gdisk.o guid.o mbr.o device.o autolist.o csprintf.o device-$(PLATFORM).o
+
+gdisk: LDLIBS += -lreadline -lz -luuid
 
 ifeq ($(PLATFORM),macosx)
   gdisk.o: CFLAGS += -Drl_filename_completion_function=filename_completion_function
