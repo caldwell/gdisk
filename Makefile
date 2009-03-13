@@ -2,7 +2,8 @@
 
 PLATFORM := $(shell uname -s | sed -e s/Linux/linux/ -e s/Darwin/macosx/)
 CFLAGS += -MMD -std=gnu99 -Wall -Wno-parentheses
-LDFLAGS += -lreadline
+LDFLAGS +=
+LDLIBS += -lreadline
 
 TARGETS = gdisk
 
