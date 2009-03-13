@@ -73,5 +73,28 @@ static inline void gpt_partition_to_host(struct gpt_partition *partition, int en
 #define gpt_partition_from_host gpt_partition_to_host
 #define gpt_header_from_host    gpt_header_to_host
 
+#include <zlib.h>
+
+static inline uint32_t gpt_partition_crc32(struct gpt_header *h, struct gpt_partition *partition)
+{
+    uint32_t partition_crc32_old = h->partition_crc32; h->partition_crc32 = 0;
+    gpt_partition_from_host(partition, h->partition_entries);
+    uint32_t partition_crc32 = crc32(crc32(0L, Z_NULL, 0), (void*)partition, h->partition_entries * h->partition_entry_size);
+    gpt_partition_to_host(partition, h->partition_entries);
+    h->partition_crc32 = partition_crc32_old;
+    return partition_crc32;
+}
+
+static inline uint32_t gpt_header_crc32(struct gpt_header *h)
+{
+    uint32_t headder_crc32_old = h->header_crc32; h->header_crc32 = 0;
+    gpt_header_from_host(h);
+    uint32_t header_crc32 = crc32(crc32(0L, Z_NULL, 0), (void*)h, h->header_size);
+    gpt_header_to_host(h);
+    h->header_crc32 = headder_crc32_old;
+    return header_crc32;
+}
+
+
 #endif /* __GPT_H__ */
 

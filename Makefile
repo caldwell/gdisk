@@ -4,7 +4,7 @@ PLATFORM := $(shell uname -s | sed -e s/Linux/linux/ -e s/Darwin/macosx/)
 DEBUG = -g
 CFLAGS += -MMD -std=gnu99 -Wall -Wno-parentheses $(DEBUG)
 LDFLAGS += $(DEBUG)
-LDLIBS += -lreadline
+LDLIBS += -lreadline -lz
 
 TARGETS = gdisk
 

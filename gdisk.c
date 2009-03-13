@@ -202,6 +202,17 @@ static struct partition_table blank_table(struct device *dev)
     return t;
 }
 
+static void gpt_crc(struct partition_table *t, struct gpt_header *h)
+{
+    h->partition_crc32 = gpt_partition_crc32(h, t->partition);
+    h->header_crc32 = gpt_header_crc32(h);
+}
+
+static bool gpt_crc_valid(struct partition_table *t, struct gpt_header *h)
+{
+    return h->partition_crc32 == gpt_partition_crc32(h, t->partition) && h->header_crc32 == gpt_header_crc32(h);
+}
+
 static struct partition_table read_table(struct device *dev)
 {
     struct partition_table t = {};
@@ -239,6 +250,11 @@ static struct partition_table read_table(struct device *dev)
 
     t.partition = get_sectors(dev, 2, divide_round_up(t.header->partition_entry_size * t.header->partition_entries,dev->sector_size));
     gpt_partition_to_host(t.partition, t.header->partition_entries);
+
+    if (!gpt_crc_valid(&t, t.header))
+        printf("header CRC not valid\n");
+    if (!gpt_crc_valid(&t, t.alt_header))
+        printf("alt header CRC not valid\n");
 
     t.mbr = read_mbr(dev);
 
