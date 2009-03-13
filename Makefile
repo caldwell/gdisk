@@ -10,6 +10,10 @@ all: $(TARGETS)
 
 gdisk: gdisk.o guid.o mbr.o device.o autolist.o csprintf.o device-$(PLATFORM).o
 
+ifeq ($(PLATFORM),macosx)
+  gdisk.o: CFLAGS += -Drl_filename_completion_function=filename_completion_function
+endif
+
 clean:
 	rm -f *.o
 	rm -f $(TARGETS)
