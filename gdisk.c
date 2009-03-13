@@ -195,6 +195,7 @@ static struct partition_table blank_table(struct device *dev)
     uint32_t alt = t.alt_header->alternate_lba;
     t.alt_header->alternate_lba = t.alt_header->my_lba;
     t.alt_header->my_lba = alt;
+    t.alt_header->partition_entry_lba = t.header->last_usable_lba + 1;
     t.partition = alloc_sectors(dev, partition_sectors);
     // Even a blank MBR should preserve the boot code.
     struct mbr mbr = read_mbr(dev);
