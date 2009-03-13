@@ -228,7 +228,11 @@ static struct partition_table read_table(struct device *dev)
 
     gpt_header_to_host(t.alt_header);
 
-#warning "assert(t.header->partition_entry_lba == 2)"
+    if (t.header->partition_entry_lba != 2)
+        return header_error("Partition table LBA is %"PRId64" and not 2", t.header->partition_entry_lba);
+
+    if (t.header->header_size != sizeof(struct gpt_header))
+        return header_error("Partition header is %d bytes long instead of %zd", t.header->header_size, sizeof(struct gpt_header));
 
     if (sizeof(struct gpt_partition) != t.header->partition_entry_size)
         return header_error("Size of partition entries are %d instead of %zd", t.header->partition_entry_size, sizeof(struct gpt_partition));
