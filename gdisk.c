@@ -206,18 +206,26 @@ static struct partition_table read_table(struct device *dev)
 {
     struct partition_table t = {};
     t.dev = dev;
-    t.header = get_sectors(dev,1,1);
-    t.alt_header = get_sectors(dev,t.header->alternate_lba,1);
-    gpt_header_to_host(t.header);
-    gpt_header_to_host(t.alt_header);
 
-#warning "assert(t.header->partition_entry_lba == 2)"
+    t.header = get_sectors(dev,1,1);
 
     if (memcmp(t.header->signature, "EFI PART", sizeof(t.header->signature)) != 0) {
         fprintf(stderr, "Missing signature in GPT header. Assuming blank partiton\n");
         free_table(t);
         return blank_table(dev);
     }
+    gpt_header_to_host(t.header);
+
+    t.alt_header = get_sectors(dev,t.header->alternate_lba,1);
+
+    if (memcmp(t.alt_header->signature, "EFI PART", sizeof(t.alt_header->signature)) != 0) {
+        fprintf(stderr, "Missing signature in altername GPT header. Assuming blank partiton\n");
+        free_table(t);
+        return blank_table(dev);
+    }
+    gpt_header_to_host(t.alt_header);
+
+#warning "assert(t.header->partition_entry_lba == 2)"
 
     if (sizeof(struct gpt_partition) != t.header->partition_entry_size)
         err(EINVAL, "Size of partition entries are %d instead of %td", t.header->partition_entry_size, sizeof(struct gpt_partition));
