@@ -11,7 +11,11 @@ all: $(TARGETS)
 
 gdisk: gdisk.o guid.o mbr.o device.o autolist.o csprintf.o device-$(PLATFORM).o
 
-gdisk: LDLIBS += -lreadline -lz -luuid
+gdisk: LDLIBS += -lreadline -lz
+
+ifeq ($(PLATFORM), linux)
+  gdisk: LDLIBS += -luuid
+endif
 
 ifeq ($(PLATFORM),macosx)
   gdisk.o: CFLAGS += -Drl_filename_completion_function=filename_completion_function
