@@ -1,8 +1,9 @@
 #  Copyright (c) 2008 David Caldwell,  All Rights Reserved.
 
 PLATFORM := $(shell uname -s | sed -e s/Linux/linux/ -e s/Darwin/macosx/)
-CFLAGS += -MMD -std=gnu99 -Wall -Wno-parentheses
-LDFLAGS +=
+DEBUG = -g
+CFLAGS += -MMD -std=gnu99 -Wall -Wno-parentheses $(DEBUG)
+LDFLAGS += $(DEBUG)
 LDLIBS += -lreadline
 
 TARGETS = gdisk
