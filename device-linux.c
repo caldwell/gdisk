@@ -19,15 +19,19 @@ static unsigned int sector_size(int fd)
 {
     uint32_t size;
     if (ioctl(fd, BLKSSZGET, &size) == -1)
-        err(errno, "ioctl(BLKSSZGET)");
+        return 512;
     return size;
 }
 
 static unsigned long long byte_count(int fd)
 {
     uint64_t count;
-    if (ioctl(fd, BLKGETSIZE64, &count) == -1)
-        err(errno, "ioctl(BLKGETSIZE64)");
+    if (ioctl(fd, BLKGETSIZE64, &count) == -1) {
+        struct stat st;
+        if (fstat(fd, &st) == -1)
+            err(errno, "can't find disk/file size");
+        return st.st_size;
+    }
     return count;
 }
 
