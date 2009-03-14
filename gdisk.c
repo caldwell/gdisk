@@ -37,6 +37,7 @@ static void dump_header(struct gpt_header *header);
 static void dump_partition(struct gpt_partition *p);
 static void *xmalloc(size_t size);
 static void *xcalloc(size_t count, size_t size);
+static void *xrealloc(void *old, size_t count);
 static char *xstrdup(char *s);
 static void *memdup(void *mem, size_t size);
 static size_t sncatprintf(char *buffer, size_t space, char *format, ...) __attribute__ ((format (printf, 3, 4)));
@@ -593,6 +594,12 @@ static void *xmalloc(size_t size)
 static void *xcalloc(size_t count, size_t size)
 {
     void *mem = calloc(count, size);
+    if (!mem) err(errno, "Out of memory");
+    return mem;
+}
+static void *xrealloc(void *old, size_t count)
+{
+    void *mem = realloc(old, count);
     if (!mem) err(errno, "Out of memory");
     return mem;
 }
