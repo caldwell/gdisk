@@ -24,6 +24,7 @@
 
 autolist_define(command);
 
+static int run_command(char *line);
 static struct partition_table read_table(struct device *dev);
 static void free_table(struct partition_table t);
 static char *command_completion(const char *text, int state);
@@ -66,69 +67,72 @@ int main(int c, char **v)
     g_table = read_table(dev);
 
     char *line;
-    while (1) {
+    int status = 0;
+    do {
         rl_completion_entry_function = (void*)command_completion; // rl_completion_entry_function is defined to return an int??
         line = readline("gdisk> ");
         if (!line)
             break;
         add_history(line);
-        char *l = line;
-        while (isspace(*l)) l++;
-        foreach_autolist(struct command *c, command)
-            if (strcasecmp(c->name, l) == 0) {
-                int args;
-                for (args=0; c->arg[args].name; args++) {}
-                char **argv = xcalloc(1+args+1, sizeof(*argv));
-                char **v = argv;
-                *v++ = xstrdup(c->name);
-                for (int a=0; a<args; a++, v++) {
-                    char *prompt = NULL;
-                    asprintf(&prompt, "%s: %s ", c->name, c->arg[a].help);
-                    if (!prompt) err(ENOMEM, "No memory for argument prompt");
-
-                    if (C_Type(c->arg[a].type) == C_File)
-                        rl_completion_entry_function = (void*)rl_filename_completion_function;
-                    else if (C_Type(c->arg[a].type) == C_Partition_Type)
-                        rl_completion_entry_function = (void*)partition_type_completion;
-
-                    *v = readline(prompt);
-                    if (!*v) goto done;
-                    free(prompt);
-
-                    if (C_Type(c->arg[a].type) == C_Flag &&
-                        strcasecmp(*v, "y")   != 0 &&
-                        strcasecmp(*v, "yes") != 0) {
-                        free(*v);
-                        *v = NULL;
-                    }
-                }
-
-                int status = c->handler(argv);
-                if (status == ECANCELED) // Special case meaning Quit!
-                    goto quit;
-                if (status)
-                    warnc(status, "%s failed", c->name);
-              done:
-                if (argv)
-                    for (int a=0; a<1+args; a++)
-                        free(argv[a]);
-                free(argv);
-                goto found;
-            }
-        if (*l)
-            printf("Command not found: '%s'\n", l);
-      found:
+        status = run_command(line);
         free(line);
-    }
+    } while (status != ECANCELED); // Special case meaning Quit!
     printf("\nQuitting without saving changes.\n");
-  quit:
-    if (line)
-        free(line);
 
     free_table(g_table);
 
     //if (!write_mbr(dev, mbr))
     //    warn("Couldn't write MBR sector");
+}
+
+static int run_command(char *line)
+{
+    int status = 0;
+    char *l = line;
+    while (isspace(*l)) l++;
+    if (!*l) return 0; // Blank line
+    foreach_autolist(struct command *c, command)
+        if (strcasecmp(c->name, l) == 0) {
+            int args;
+            for (args=0; c->arg[args].name; args++) {}
+            char **argv = xcalloc(1+args+1, sizeof(*argv));
+            char **v = argv;
+            *v++ = xstrdup(c->name);
+            for (int a=0; a<args; a++, v++) {
+                char *prompt = NULL;
+                asprintf(&prompt, "%s: %s ", c->name, c->arg[a].help);
+                if (!prompt) err(ENOMEM, "No memory for argument prompt");
+
+                if (C_Type(c->arg[a].type) == C_File)
+                    rl_completion_entry_function = (void*)rl_filename_completion_function;
+                else if (C_Type(c->arg[a].type) == C_Partition_Type)
+                    rl_completion_entry_function = (void*)partition_type_completion;
+
+                *v = readline(prompt);
+                if (!*v) goto done;
+                free(prompt);
+
+                if (C_Type(c->arg[a].type) == C_Flag &&
+                    strcasecmp(*v, "y")   != 0 &&
+                    strcasecmp(*v, "yes") != 0) {
+                    free(*v);
+                    *v = NULL;
+                }
+            }
+
+            status = c->handler(argv);
+            if (status && status != ECANCELED) // ECANCELED is a special case meaning Quit!
+                warnc(status, "%s failed", c->name);
+          done:
+            if (argv)
+                for (int a=0; a<1+args; a++)
+                    free(argv[a]);
+            free(argv);
+            return status;
+        }
+
+    printf("Command not found: '%s'\n", l);
+    return EINVAL;
 }
 
 static int help(char **arg)
@@ -143,7 +147,6 @@ command_add("help", help, "Show a list of commands");
 
 static int quit(char **arg)
 {
-    printf("Quitting without saving changes.\n");
     return ECANCELED; // total special case. Weak.
 }
 command_add("quit", quit, "Quit, leaving the disk untouched.");
