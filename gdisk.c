@@ -438,6 +438,14 @@ static struct partition_table dup_table(struct partition_table t)
     return dup;
 }
 
+static int get_mbr_alias(struct partition_table t, int index)
+{
+    for (int m=0; m<lengthof(t.alias); m++)
+        if (g_table.alias[m] == index)
+            return m;
+    return -1;
+}
+
 static unsigned long partition_sectors(struct partition_table t)
 {
     return divide_round_up(t.header->partition_entry_size * t.header->partition_entries, t.dev->sector_size);
@@ -555,16 +563,12 @@ static int command_print(char **arg)
         if (guid_eq(gpt_partition_type_empty, g_table.partition[i].partition_type))
             continue;
         printf("    %3d) %-20s ", i, "none");
-        if (g_table.options.mbr_sync) {
-            for (int m=0; m<lengthof(g_table.alias); m++)
-                if (g_table.alias[m] == i) {
-                    printf("%1s %02x  ", g_table.mbr.partition[m].status & MBR_STATUS_BOOTABLE ? "*" : "",
-                           g_table.mbr.partition[m].partition_type);
-                    goto mbr_printed;
-                }
-        }
-        printf("%1s %3s ","","");
-      mbr_printed:;
+        int m = get_mbr_alias(g_table, i);
+        if (g_table.options.mbr_sync && m != -1) {
+            printf("%1s %02x  ", g_table.mbr.partition[m].status & MBR_STATUS_BOOTABLE ? "*" : "",
+                   g_table.mbr.partition[m].partition_type);
+        } else
+            printf("%1s %3s ","","");
         int found=0;
         for (int t=0; gpt_partition_type[t].name; t++)
             if (guid_eq(gpt_partition_type[t].guid, g_table.partition[i].partition_type)) {
