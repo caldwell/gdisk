@@ -142,6 +142,8 @@ static int run_command(char *line)
     }
 
     argv = xrealloc(argv, (1+args+1) * sizeof(*argv));
+    memset(&argv[argc], 0, (1+args+1 - argc) * sizeof(*argv));
+
     char **v = argv + 1; // start past command name.
     for (int a=0; a<args; a++, v++) {
         if (*v) continue; // Don't prompt for args entered on command line.
