@@ -161,6 +161,22 @@ static int run_command(char *line)
     return status;
 }
 
+static struct command *find_command(char *command)
+{
+    foreach_autolist(struct command *c, command)
+        if (strcmp(command, c->name) == 0)
+            return c;
+    return NULL;
+}
+
+static char *arg_name(struct command_arg_ *arg)
+{
+    return csprintf("%s%s%s",
+                    arg->type == C_Flag ? "--" : "<",
+                    arg->name,
+                    arg->type == C_Flag ? ""   : ">");
+}
+
 static int compare_command_name(const void *a, const void *b)
 {
     return strcmp((*(struct command **)a)->name, (*(struct command **)b)->name);
@@ -168,6 +184,26 @@ static int compare_command_name(const void *a, const void *b)
 
 static int help(char **arg)
 {
+    if (arg[1]) {
+        struct command *c = find_command(arg[1]);
+        if (!c) {
+            printf("No such command: '%s'\n", arg[1]);
+            return 0;
+        }
+        printf("%s:\n  %s\n\nUsage:\n  %s", c->name, c->help, c->name);
+        for (int a=0; c->arg[a].name; a++) {
+            printf(" %s%s%s",
+                   c->arg[a].type & C_Optional ? "[ " : "",
+                   arg_name(&c->arg[a]),
+                   c->arg[a].type & C_Optional ? " ]" : "");
+        }
+        printf("\n\nArguments:\n");
+        for (int a=0; c->arg[a].name; a++) {
+            printf("  %s: %s\n", arg_name(&c->arg[a]), c->arg[a].help);
+        }
+        return 0;
+    }
+
     printf("Commands:\n");
     int width=0, count=0;
     foreach_autolist(struct command *c, command) {
@@ -185,7 +221,8 @@ static int help(char **arg)
 
     return 0;
 }
-command_add("help", help, "Show a list of commands");
+command_add("help", help, "Show a list of commands",
+            command_arg("command", C_String|C_Optional, "Command to get help with"));
 
 static int quit(char **arg)
 {
