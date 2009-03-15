@@ -248,9 +248,9 @@ static char *command_completion(const char *text, int state)
 
 static char *partition_type_completion(const char *text, int state)
 {
-    for (int i=0; gpt_partition_type[i].name; i++)
+    for (int i=0, s=0; gpt_partition_type[i].name; i++)
         if (strncmp(text, gpt_partition_type[i].name, strlen(text)) == 0 &&
-            i++ == state)
+            s++ == state)
             return xstrdup(gpt_partition_type[i].name);
     return NULL;
 }
