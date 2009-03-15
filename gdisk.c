@@ -559,8 +559,24 @@ static int command_create_partition(char **arg)
 
     *p = part;
 
-    if (g_table.options.mbr_sync) {
-        // Sync new partition to MBR!
+    int mbr_type;
+    if (g_table.options.mbr_sync &&
+        partition_entry_is_representable_in_mbr(part) &&
+        (mbr_type = find_mbr_equivalent(p->partition_type))) {
+
+        for (int i=0; i < lengthof(g_table.mbr.partition); i++)
+            if (g_table.mbr.partition[i].partition_type == 0) {
+                g_table.mbr.partition[i] = (struct mbr_partition) {
+                    .status = 0,
+                    .first_sector = {}, // Need disk geometry to do this properly
+                    .last_sector  = {}, // Need disk geometry to do this properly
+                    .partition_type = mbr_type,
+                    .first_sector_lba = p->first_lba,
+                    .sectors = p->last_lba - p->first_lba + 1,
+                };
+                g_table.alias[i] = p - g_table.partition;
+                break;
+            }
     }
 
     return 0;
