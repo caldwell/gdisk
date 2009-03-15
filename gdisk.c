@@ -123,6 +123,8 @@ static int run_command(char *line)
             char **v = argv + 1; // start past command name.
             for (int a=0; a<args; a++, v++) {
                 if (*v) continue; // Don't prompt for args entered on command line.
+                if (c->arg[a].type & C_Optional)
+                    continue;
                 char *prompt = NULL;
                 asprintf(&prompt, "%s: %s ", c->name, c->arg[a].help);
                 if (!prompt) err(ENOMEM, "No memory for argument prompt");
