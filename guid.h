@@ -40,6 +40,7 @@ extern GUID gpt_partition_type_empty;
 char *guid_str(); // convenience function. Returns a static char, so strdup before calling
                   // again. Obviously not thread safe, but it's convenient. :-)
 
+GUID guid_create();
 
 #include <string.h>
 static inline int guid_eq(GUID a, GUID b) { return memcmp(a.byte, b.byte, sizeof(a.byte)) == 0; }

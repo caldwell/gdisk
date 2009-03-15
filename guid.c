@@ -80,3 +80,11 @@ char *guid_str(GUID g)
              g.byte[10], g.byte[11], g.byte[12], g.byte[13], g.byte[14], g.byte[15]);
     return str;
 }
+
+#include <uuid/uuid.h>
+GUID guid_create()
+{
+    GUID g;
+    uuid_generate(g.byte);
+    return g;
+}

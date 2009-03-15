@@ -244,8 +244,6 @@ static char *partition_type_completion(const char *text, int state)
     return NULL;
 }
 
-#include <uuid/uuid.h>
-
 static struct partition_table blank_table(struct device *dev)
 {
     struct partition_table t = {};
@@ -262,13 +260,11 @@ static struct partition_table blank_table(struct device *dev)
                .alternate_lba = dev->sector_count-1,
                .first_usable_lba = 2                  + partition_sectors,
                .last_usable_lba = dev->sector_count-2 - partition_sectors,
-#warning "Implement new_guid()"
-//               .disk_guid = new_guid(),
+               .disk_guid = guid_create(),
                .partition_entry_lba = 2,
                .partition_entries = partitions,
                .partition_entry_size = sizeof(struct gpt_partition),
     };
-    uuid_generate(t.header->disk_guid);
 
     *t.alt_header = *t.header;
     t.alt_header->alternate_lba       = t.header->my_lba;
@@ -325,7 +321,7 @@ static struct partition_table gpt_table_from_mbr(struct device *dev)
                 case 0x82: t.partition[gp].partition_type = GUID(0657FD6D,A4AB,43C4,84E5,0933C84B4F4F); break;
                 default:   t.partition[gp].partition_type = GUID(024DEE41,33E7,11D3,9D69,0008C781F39F); break;
             }
-            uuid_generate(t.partition[gp].partition_guid);
+            t.partition[gp].partition_guid = guid_create();
             t.alias[mp] = gp++;
         }
     }
