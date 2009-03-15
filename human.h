@@ -2,9 +2,11 @@
 #ifndef __HUMAN_H__
 #define __HUMAN_H__
 
-#include <stdint.h>
+// Main interface
+char *human_string(long long size); // csprintf() based.
 
-// Usage:
+
+// Low level interface usage:
 // printf("%.2f %s", human_format(number));
 #define human_format(x) human_number(x), human_units(x)
 char *human_units(long long x);

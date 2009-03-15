@@ -518,20 +518,20 @@ static int command_print(char **arg)
 {
     printf("%s:\n", g_table.dev->name);
     printf("  Disk GUID: %s\n", guid_str(g_table.header->disk_guid));
-    printf("  %lld %ld byte sectors for %lld total bytes (%.2f %s capacity)\n",
+    printf("  %lld %ld byte sectors for %lld total bytes (%s capacity)\n",
            g_table.dev->sector_count,  g_table.dev->sector_size,
            g_table.dev->sector_count * g_table.dev->sector_size,
-           human_format(g_table.dev->sector_count * g_table.dev->sector_size));
+           human_string(g_table.dev->sector_count * g_table.dev->sector_size));
     printf("  MBR partition table is %s synced to the GPT table\n", g_table.options.mbr_sync ? "currently" : "not");
     printf("\n    %3s) %14s %14s %26s %s\n", "###", "Start LBA", "End LBA", "Size", "GUID");
     printf("    %.98s\n", "----------------------------------------------------------------------------------------------------------------");
     for (int i=0; i<g_table.header->partition_entries; i++) {
         if (guid_eq(gpt_partition_type_empty, g_table.partition[i].partition_type))
             continue;
-        printf("    %3d) %14"PRId64" %14"PRId64" %14"PRId64" (%6.2f %2s) %s\n", i,
+        printf("    %3d) %14"PRId64" %14"PRId64" %14"PRId64" (%9s) %s\n", i,
                g_table.partition[i].first_lba, g_table.partition[i].last_lba,
                (g_table.partition[i].last_lba - g_table.partition[i].first_lba) * g_table.dev->sector_size,
-               human_format((g_table.partition[i].last_lba - g_table.partition[i].first_lba) * g_table.dev->sector_size),
+               human_string((g_table.partition[i].last_lba - g_table.partition[i].first_lba) * g_table.dev->sector_size),
                guid_str(g_table.partition[i].partition_guid));
     }
     printf("\n    %3s) %-20s %s %-3s %-26s\n", "###", "Flags", "B", "MBR", "GPT Type");

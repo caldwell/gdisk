@@ -1,6 +1,5 @@
 //  Copyright (c) 2009 David Caldwell,  All Rights Reserved.
 
-#include <stdint.h>
 #include "csprintf.h"
 #include "human.h"
 
@@ -17,4 +16,9 @@ char *human_units(long long x)
     for (char **u = units; ; x /= 1024, u++)
         if (x < 1024)
             return *u;
+}
+
+char *human_string(long long size)
+{
+    return csprintf("%.2f %s", human_format(size));
 }
