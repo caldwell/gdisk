@@ -32,7 +32,7 @@ struct command {
 #define C_Optional  0x80
 #define C_Type_Mask 0x7f
 #define C_Type(x)   ((x) & C_Type_Mask)
-#define C_Flag      0x01
+#define C_Flag      (0x01|C_Optional)
 #define C_Number    0x02
 #define C_String    0x03
 #define C_File      0x04

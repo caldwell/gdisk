@@ -136,7 +136,7 @@ static int run_command(char *line)
                 if (!*v) goto done;
                 free(prompt);
 
-                if (C_Type(c->arg[a].type) == C_Flag &&
+                if (c->arg[a].type == C_Flag &&
                     strcasecmp(*v, "y")   != 0 &&
                     strcasecmp(*v, "yes") != 0) {
                     free(*v);
