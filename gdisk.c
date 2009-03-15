@@ -150,13 +150,6 @@ static int run_command(char *line)
         *v = readline(prompt);
         if (!*v) goto done;
         free(prompt);
-
-        if (c->arg[a].type == C_Flag &&
-            strcasecmp(*v, "y")   != 0 &&
-            strcasecmp(*v, "yes") != 0) {
-            free(*v);
-            *v = NULL;
-        }
     }
 
     status = c->handler(argv);
