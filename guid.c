@@ -81,6 +81,37 @@ char *guid_str(GUID g)
     return str;
 }
 
+#include <stdlib.h>
+#include <ctype.h>
+GUID guid_from_string(char *guid)
+{
+    GUID g;
+    if (strlen(guid) == 32) { // hex stream
+        for (int i=0; i<16; i++) {
+            char hex[3] = { guid[i*2+0], guid[i*2+1] };
+            if (!isxdigit(hex[0]) || !isxdigit(hex[1])) {
+                fprintf(stderr, "Bad character '%c' in guid string.\n", isxdigit(hex[0]) ? hex[0] : hex[1]);
+                return (struct GUID) {};
+            }
+            g.byte[i] = strtoul(hex, NULL, 16);
+        }
+        return g;
+    }
+    int byte[16];
+    if (sscanf(guid, "%2x%2x%2x%2x-%2x%2x-%2x%2x-%2x%2x-%2x%2x%2x%2x%2x%2x",
+               &byte[3], &byte[2], &byte[1], &byte[0],
+               &byte[5], &byte[4],
+               &byte[7], &byte[6],
+               &byte[8], &byte[9],
+               &byte[10], &byte[11], &byte[12], &byte[13], &byte[14], &byte[15]) == 16) {
+        for (int i=0; i<16; i++)
+            g.byte[i] = byte[i];
+        return g;
+    }
+    fprintf(stderr, "Unknown GUID format: \"%s\"\n", guid);
+    return (struct GUID) {};
+}
+
 #include <uuid/uuid.h>
 GUID guid_create()
 {
