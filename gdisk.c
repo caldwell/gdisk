@@ -108,52 +108,60 @@ static char **parse_command(char *line)
     return v;
 }
 
+static struct command *find_command(char *command)
+{
+    foreach_autolist(struct command *c, command)
+        if (strcmp(command, c->name) == 0)
+            return c;
+    return NULL;
+}
+
 static int run_command(char *line)
 {
     int status = 0;
     char **argv = parse_command(line);
     if (!*argv) goto done; // Blank line
 
-    foreach_autolist(struct command *c, command)
-        if (strcasecmp(c->name, argv[0]) == 0) {
-            int args;
-            for (args=0; c->arg[args].name; args++) {}
+    struct command *c = find_command(argv[0]);
+    if (!c) {
+        printf("Command not found: '%s'\n", argv[0]);
+        status = EINVAL;
+        goto done;
+    }
 
-            argv = xrealloc(argv, (1+args+1) * sizeof(*argv));
-            char **v = argv + 1; // start past command name.
-            for (int a=0; a<args; a++, v++) {
-                if (*v) continue; // Don't prompt for args entered on command line.
-                if (c->arg[a].type & C_Optional)
-                    continue;
-                char *prompt = NULL;
-                asprintf(&prompt, "%s: %s ", c->name, c->arg[a].help);
-                if (!prompt) err(ENOMEM, "No memory for argument prompt");
+    int args;
+    for (args=0; c->arg[args].name; args++) {}
 
-                if (C_Type(c->arg[a].type) == C_File)
-                    rl_completion_entry_function = (void*)rl_filename_completion_function;
-                else if (C_Type(c->arg[a].type) == C_Partition_Type)
-                    rl_completion_entry_function = (void*)partition_type_completion;
+    argv = xrealloc(argv, (1+args+1) * sizeof(*argv));
+    char **v = argv + 1; // start past command name.
+    for (int a=0; a<args; a++, v++) {
+        if (*v) continue; // Don't prompt for args entered on command line.
+        if (c->arg[a].type & C_Optional)
+            continue;
+        char *prompt = NULL;
+        asprintf(&prompt, "%s: %s ", c->name, c->arg[a].help);
+        if (!prompt) err(ENOMEM, "No memory for argument prompt");
 
-                *v = readline(prompt);
-                if (!*v) goto done;
-                free(prompt);
+        if (C_Type(c->arg[a].type) == C_File)
+            rl_completion_entry_function = (void*)rl_filename_completion_function;
+        else if (C_Type(c->arg[a].type) == C_Partition_Type)
+            rl_completion_entry_function = (void*)partition_type_completion;
 
-                if (c->arg[a].type == C_Flag &&
-                    strcasecmp(*v, "y")   != 0 &&
-                    strcasecmp(*v, "yes") != 0) {
-                    free(*v);
-                    *v = NULL;
-                }
-            }
+        *v = readline(prompt);
+        if (!*v) goto done;
+        free(prompt);
 
-            status = c->handler(argv);
-            if (status && status != ECANCELED) // ECANCELED is a special case meaning Quit!
-                warnc(status, "%s failed", c->name);
-            goto done;
+        if (c->arg[a].type == C_Flag &&
+            strcasecmp(*v, "y")   != 0 &&
+            strcasecmp(*v, "yes") != 0) {
+            free(*v);
+            *v = NULL;
         }
+    }
 
-    printf("Command not found: '%s'\n", argv[0]);
-    status = EINVAL;
+    status = c->handler(argv);
+    if (status && status != ECANCELED) // ECANCELED is a special case meaning Quit!
+        warnc(status, "%s failed", c->name);
 
   done:
     if (argv)
@@ -161,14 +169,6 @@ static int run_command(char *line)
             free(argv[a]);
     free(argv);
     return status;
-}
-
-static struct command *find_command(char *command)
-{
-    foreach_autolist(struct command *c, command)
-        if (strcmp(command, c->name) == 0)
-            return c;
-    return NULL;
 }
 
 static char *arg_name(struct command_arg_ *arg)
