@@ -456,6 +456,7 @@ static int compare_partition_entries(const void *_a, const void *_b)
 static void compact_and_sort(struct partition_table *t)
 {
     qsort(t->partition, t->header->partition_entries, sizeof(*t->partition), compare_partition_entries);
+    update_table_crc(&g_table);
     create_mbr_alias_table(t);
 }
 
@@ -576,6 +577,7 @@ static int command_delete_partition(char **arg)
         return EINVAL;
     }
     memset(&g_table.partition[index], 0, sizeof(g_table.partition[index]));
+    update_table_crc(&g_table);
     int mbr_alias = get_mbr_alias(g_table, index);
     if (g_table.options.mbr_sync && mbr_alias != -1) {
         memset(&g_table.mbr.partition[mbr_alias], 0, sizeof(*g_table.mbr.partition));
