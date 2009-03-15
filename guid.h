@@ -6,13 +6,7 @@ typedef struct GUID {
     unsigned char byte[16];
 } GUID;
 
-struct gpt_partition_type {
-    char *name;
-    GUID guid;
-};
-
-extern struct gpt_partition_type gpt_partition_type[];
-extern GUID gpt_partition_type_empty, bad_guid;
+extern GUID bad_guid;
 
 #define _0x(x) 0x##x##LL
 

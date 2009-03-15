@@ -15,6 +15,7 @@
 #include "lengthof.h"
 #include "round.h"
 #include "guid.h"
+#include "partition-type.h"
 #include "device.h"
 #include "gpt.h"
 #include "mbr.h"
