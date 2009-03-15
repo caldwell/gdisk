@@ -727,6 +727,27 @@ static int command_print(char **arg)
 }
 command_add("print", command_print, "Print the partition table.");
 
+static int command_print_mbr(char **arg)
+{
+    printf("    #) %-9s %-11s %-11s %10s %22s %s\n", "Flags", "Start C:H:S", "End C:H:S", "Start LBA", "Size", "Type");
+    printf("    %.98s\n", "----------------------------------------------------------------------------------------------------------------");
+    for (int i=0; i<lengthof(g_table.mbr.partition); i++) {
+        if (!g_table.mbr.partition[i].partition_type)
+            printf("    %d) Unused entry\n", i);
+        else
+            printf("    %d) %02x %6s %4d:%03d:%02d %4d:%03d:%02d %10d %10d (%9s) %02x (%s)\n",
+                   i, g_table.mbr.partition[i].status, g_table.mbr.partition[i].status & MBR_STATUS_BOOTABLE ? "(boot)" : "",
+                   g_table.mbr.partition[i].first_sector.cylinder, g_table.mbr.partition[i].first_sector.head, g_table.mbr.partition[i].first_sector.sector,
+                   g_table.mbr.partition[i].last_sector.cylinder,  g_table.mbr.partition[i].last_sector.head,  g_table.mbr.partition[i].last_sector.sector,
+                   g_table.mbr.partition[i].first_sector_lba,
+                   g_table.mbr.partition[i].sectors, human_string((long long)g_table.mbr.partition[i].sectors * g_table.dev->sector_size),
+                   g_table.mbr.partition[i].partition_type,
+                   mbr_partition_type[g_table.mbr.partition[i].partition_type] ? mbr_partition_type[g_table.mbr.partition[i].partition_type] : "???");
+    }
+    return 0;
+}
+command_add("print-mbr", command_print_mbr, "Print the MBR partition table.");
+
 static void dump_dev(struct device *dev)
 {
     printf("dev.sector_size: %ld\n", dev->sector_size);
