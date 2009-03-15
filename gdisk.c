@@ -20,6 +20,7 @@
 #include "mbr.h"
 #include "autolist.h"
 #include "csprintf.h"
+#include "human.h"
 #include "gdisk.h"
 
 autolist_define(command);
@@ -512,22 +513,6 @@ static void backup_table()
     fprintf(stderr, "backing up current partition table to %s\n", backup_path);
     export_table(g_table_orig, backup_path);
 }
-
-static float human_number(long long x)
-{
-    float n = x;
-    while (n > 1024)
-        n /= 1024;
-    return n;
-}
-static char *human_units(long long x)
-{
-    char *units[] = { "B", "KB", "MB", "GB", "TB", "PB", "EB" };
-    for (char **u = units; ; x /= 1024, u++)
-        if (x < 1024)
-            return *u;
-}
-#define human_format(x) human_number(x), human_units(x)
 
 static int command_print(char **arg)
 {

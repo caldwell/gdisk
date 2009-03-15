@@ -9,7 +9,7 @@ TARGETS = gdisk
 
 all: $(TARGETS)
 
-gdisk: gdisk.o guid.o mbr.o device.o autolist.o csprintf.o device-$(PLATFORM).o
+gdisk: gdisk.o guid.o mbr.o device.o autolist.o csprintf.o human.o device-$(PLATFORM).o
 
 gdisk: LDLIBS += -lreadline -lz
 
