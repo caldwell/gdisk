@@ -12,7 +12,7 @@ struct gpt_partition_type {
 };
 
 extern struct gpt_partition_type gpt_partition_type[];
-extern GUID gpt_partition_type_empty;
+extern GUID gpt_partition_type_empty, bad_guid;
 
 #define _0x(x) 0x##x##LL
 

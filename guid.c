@@ -81,6 +81,9 @@ char *guid_str(GUID g)
     return str;
 }
 
+// This GUID isn't "bad" per-se, but since GUIDs are globally unique I hereby designate this one to represent unparsable GUID strings.
+GUID bad_guid = STATIC_GUID(a3805766,111e,11de,9b0f,001cc0952d53);
+
 #include <stdlib.h>
 #include <ctype.h>
 GUID guid_from_string(char *guid)
@@ -89,10 +92,8 @@ GUID guid_from_string(char *guid)
     if (strlen(guid) == 32) { // hex stream
         for (int i=0; i<16; i++) {
             char hex[3] = { guid[i*2+0], guid[i*2+1] };
-            if (!isxdigit(hex[0]) || !isxdigit(hex[1])) {
-                fprintf(stderr, "Bad character '%c' in guid string.\n", isxdigit(hex[0]) ? hex[0] : hex[1]);
-                return (struct GUID) {};
-            }
+            if (!isxdigit(hex[0]) || !isxdigit(hex[1]))
+                return bad_guid;
             g.byte[i] = strtoul(hex, NULL, 16);
         }
         return g;
@@ -108,8 +109,7 @@ GUID guid_from_string(char *guid)
             g.byte[i] = byte[i];
         return g;
     }
-    fprintf(stderr, "Unknown GUID format: \"%s\"\n", guid);
-    return (struct GUID) {};
+    return bad_guid;
 }
 
 #include <uuid/uuid.h>
