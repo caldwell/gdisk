@@ -164,8 +164,11 @@ static int run_command(char *line)
 static int help(char **arg)
 {
     printf("Commands:\n");
+    int width=0;
     foreach_autolist(struct command *c, command)
-        printf("%-20s %s\n", c->name, c->help);
+        width=MAX(width, strlen(c->name));
+    foreach_autolist(struct command *c, command)
+        printf("%-*s %s\n", width+2, c->name, c->help);
 
     return 0;
 }
