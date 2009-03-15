@@ -438,6 +438,29 @@ static struct partition_table dup_table(struct partition_table t)
     return dup;
 }
 
+static int compare_partition_entries(const void *_a, const void *_b)
+{
+    const struct gpt_partition *a = _a, *b = _b;
+    int a_empty = guid_eq(gpt_partition_type_empty, a->partition_type),
+        b_empty = guid_eq(gpt_partition_type_empty, b->partition_type);
+    if (a_empty || b_empty)
+        return a_empty - b_empty;
+    return (long long)a->first_lba - (long long)b->first_lba;
+}
+
+static void compact_and_sort(struct partition_table *t)
+{
+    qsort(t->partition, t->header->partition_entries, sizeof(*t->partition), compare_partition_entries);
+    create_mbr_alias_table(t);
+}
+
+static int command_compact_and_sort(char **arg)
+{
+    compact_and_sort(&g_table);
+    return 0;
+}
+command_add("compact-and-sort", command_compact_and_sort, "Remove \"holes\" from table and sort entries in ascending order");
+
 static int get_mbr_alias(struct partition_table t, int index)
 {
     for (int m=0; m<lengthof(t.alias); m++)
