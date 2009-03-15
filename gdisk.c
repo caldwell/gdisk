@@ -545,7 +545,7 @@ static int command_print(char **arg)
     printf("\n    %3s) %14s %14s %26s %s\n", "###", "Start LBA", "End LBA", "Size", "GUID");
     printf("    %.98s\n", "----------------------------------------------------------------------------------------------------------------");
     for (int i=0; i<g_table.header->partition_entries; i++) {
-        if (memcmp(gpt_partition_type_empty, g_table.partition[i].partition_type, sizeof(gpt_partition_type_empty)) == 0)
+        if (guid_eq(gpt_partition_type_empty, g_table.partition[i].partition_type))
             continue;
         printf("    %3d) %14"PRId64" %14"PRId64" %14"PRId64" (%6.2f %2s) %s\n", i,
                g_table.partition[i].first_lba, g_table.partition[i].last_lba,
@@ -556,7 +556,7 @@ static int command_print(char **arg)
     printf("\n    %3s) %-20s %s %-3s %-26s\n", "###", "Flags", "B", "MBR", "GPT Type");
     printf("    %.98s\n", "----------------------------------------------------------------------------------------------------------------");
     for (int i=0; i<g_table.header->partition_entries; i++) {
-        if (memcmp(gpt_partition_type_empty, g_table.partition[i].partition_type, sizeof(gpt_partition_type_empty)) == 0)
+        if (guid_eq(gpt_partition_type_empty, g_table.partition[i].partition_type))
             continue;
         printf("    %3d) %-20s ", i, "none");
         if (g_table.options.mbr_sync) {
@@ -571,7 +571,7 @@ static int command_print(char **arg)
       mbr_printed:;
         int found=0;
         for (int t=0; gpt_partition_type[t].name; t++)
-            if (memcmp(gpt_partition_type[t].guid, g_table.partition[i].partition_type, sizeof(g_table.partition[i].partition_type)) == 0) {
+            if (guid_eq(gpt_partition_type[t].guid, g_table.partition[i].partition_type)) {
                 printf("%s%s", found ? " or " : "", gpt_partition_type[t].name);
                 found = 1;
             }
@@ -626,7 +626,7 @@ static void dump_partition(struct gpt_partition *p)
 {
     printf("partition_type = %s\n",   guid_str(p->partition_type));
     for (int i=0; gpt_partition_type[i].name; i++)
-        if (memcmp(gpt_partition_type[i].guid, p->partition_type, sizeof(p->partition_type)) == 0)
+        if (guid_eq(gpt_partition_type[i].guid, p->partition_type))
             printf("      * %s\n", gpt_partition_type[i].name);
     printf("partition_guid = %s\n",   guid_str(p->partition_guid));
     printf("first_lba      = %"PRId64"\n", p->first_lba);
@@ -641,7 +641,7 @@ static void dump_partition(struct gpt_partition *p)
 static int command_dump_partition(char **arg)
 {
     for (int i=0; i<g_table.header->partition_entries; i++) {
-        if (memcmp(gpt_partition_type_empty, g_table.partition[i].partition_type, sizeof(gpt_partition_type_empty)) == 0)
+        if (guid_eq(gpt_partition_type_empty, g_table.partition[i].partition_type))
             continue;
         printf("Partition %d of %d\n", i, g_table.header->partition_entries);
         dump_partition(&g_table.partition[i]);
