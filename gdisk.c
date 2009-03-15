@@ -360,6 +360,14 @@ static int gpt_from_mbr(char **arg)
 }
 command_add("init-from-mbr", gpt_from_mbr, "Init a GPT from the MBR");
 
+static bool partition_entry_is_representable_in_mbr(struct gpt_partition entry)
+{
+    // MBR only has 32 bits for the LBA. So if the partition is further up the disk than that then it can't be represented in the MBR.
+    return !guid_eq(gpt_partition_type_empty, entry.partition_type) &&
+           entry.first_lba < 0x100000000LL &&
+           entry.last_lba  < 0x100000000LL;
+}
+
 static void create_mbr_alias_table(struct partition_table *t)
 {
     t->options.mbr_sync = true;
@@ -369,14 +377,14 @@ static void create_mbr_alias_table(struct partition_table *t)
         if (!t->mbr.partition[mp].partition_type)
             continue;
         for (int gp=0; gp<t->header->partition_entries; gp++)
-            if (t->partition[gp].first_lba < 0x100000000LL &&
-                t->partition[gp].last_lba  < 0x100000000LL &&
+            if (partition_entry_is_representable_in_mbr(t->partition[gp]) &&
                 (t->mbr.partition[mp].first_sector_lba == t->partition[gp].first_lba ||
                  // first partition could be type EE which covers the GPT partition table and the optional EFI filesystem.
                  // The EFI filesystem in the GPT doesn't cover the EFI partition table, so the starts might not line up.
                  t->mbr.partition[mp].first_sector_lba == 1 && t->mbr.partition[mp].partition_type == 0xee) &&
-                t->mbr.partition[mp].first_sector_lba + t->mbr.partition[mp].sectors == t->partition[gp].last_lba + 1)
+                t->mbr.partition[mp].first_sector_lba + t->mbr.partition[mp].sectors == t->partition[gp].last_lba + 1) {
                 t->alias[mp] = gp;
+            }
         if (t->alias[mp] == -1)
             t->options.mbr_sync = false;
     }
