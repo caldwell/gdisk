@@ -384,6 +384,7 @@ static void create_mbr_alias_table(struct partition_table *t)
                  t->mbr.partition[mp].first_sector_lba == 1 && t->mbr.partition[mp].partition_type == 0xee) &&
                 t->mbr.partition[mp].first_sector_lba + t->mbr.partition[mp].sectors == t->partition[gp].last_lba + 1) {
                 t->alias[mp] = gp;
+                break;
             }
         if (t->alias[mp] == -1)
             t->options.mbr_sync = false;
