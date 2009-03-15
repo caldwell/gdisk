@@ -161,14 +161,27 @@ static int run_command(char *line)
     return status;
 }
 
+static int compare_command_name(const void *a, const void *b)
+{
+    return strcmp((*(struct command **)a)->name, (*(struct command **)b)->name);
+}
+
 static int help(char **arg)
 {
     printf("Commands:\n");
-    int width=0;
-    foreach_autolist(struct command *c, command)
+    int width=0, count=0;
+    foreach_autolist(struct command *c, command) {
         width=MAX(width, strlen(c->name));
-    foreach_autolist(struct command *c, command)
-        printf("%-*s %s\n", width+2, c->name, c->help);
+        count++;
+    }
+
+    struct command *command[count], **c = command;
+    foreach_autolist(struct command *cmd, command)
+        *c++ = cmd;
+    qsort(command, count, sizeof(*command), compare_command_name);
+
+    for (c=command; c < &command[count]; c++)
+        printf("%-*s %s\n", width+2, (*c)->name, (*c)->help);
 
     return 0;
 }
