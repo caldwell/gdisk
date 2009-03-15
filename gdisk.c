@@ -349,6 +349,28 @@ static int gpt_from_mbr(char **arg)
 }
 command_add("init-from-mbr", gpt_from_mbr, "Init a GPT from the MBR");
 
+static void create_mbr_alias_table(struct partition_table *t)
+{
+    t->options.mbr_sync = true;
+    for (int i=0; i<lengthof(t->alias); i++)
+        t->alias[i] = -1;
+    for (int mp=0; mp<lengthof(t->mbr.partition); mp++) {
+        if (!t->mbr.partition[mp].partition_type)
+            continue;
+        for (int gp=0; gp<t->header->partition_entries; gp++)
+            if (t->partition[gp].first_lba < 0x100000000LL &&
+                t->partition[gp].last_lba  < 0x100000000LL &&
+                (t->mbr.partition[mp].first_sector_lba == t->partition[gp].first_lba ||
+                 // first partition could be type EE which covers the GPT partition table and the optional EFI filesystem.
+                 // The EFI filesystem in the GPT doesn't cover the EFI partition table, so the starts might not line up.
+                 t->mbr.partition[mp].first_sector_lba == 1 && t->mbr.partition[mp].partition_type == 0xee) &&
+                t->mbr.partition[mp].first_sector_lba + t->mbr.partition[mp].sectors == t->partition[gp].last_lba + 1)
+                t->alias[mp] = gp;
+        if (t->alias[mp] == -1)
+            t->options.mbr_sync = false;
+    }
+}
+
 static struct partition_table read_table(struct device *dev)
 {
     struct partition_table t = {};
@@ -394,24 +416,7 @@ static struct partition_table read_table(struct device *dev)
 
     t.mbr = read_mbr(dev);
 
-    t.options.mbr_sync = true;
-    for (int i=0; i<lengthof(t.alias); i++)
-        t.alias[i] = -1;
-    for (int mp=0; mp<lengthof(t.mbr.partition); mp++) {
-        if (!t.mbr.partition[mp].partition_type)
-            continue;
-        for (int gp=0; gp<t.header->partition_entries; gp++)
-            if (t.partition[gp].first_lba < 0x100000000LL &&
-                t.partition[gp].last_lba  < 0x100000000LL &&
-                (t.mbr.partition[mp].first_sector_lba == t.partition[gp].first_lba ||
-                 // first partition could be type EE which covers the GPT partition table and the optional EFI filesystem.
-                 // The EFI filesystem in the GPT doesn't cover the EFI partition table, so the starts might not line up.
-                 t.mbr.partition[mp].first_sector_lba == 1 && t.mbr.partition[mp].partition_type == 0xee) &&
-                t.mbr.partition[mp].first_sector_lba + t.mbr.partition[mp].sectors == t.partition[gp].last_lba + 1)
-                t.alias[mp] = gp;
-        if (t.alias[mp] == -1)
-            t.options.mbr_sync = false;
-    }
+    create_mbr_alias_table(&t);
 
     return t;
 }
