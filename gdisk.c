@@ -121,7 +121,9 @@ static int run_command(char *line)
 {
     int status = 0;
     char **argv = parse_command(line);
-    if (!*argv) goto done; // Blank line
+    int argc;
+    for (argc=0; argv[argc]; argc++) {}
+    if (!argc) goto done; // Blank line
 
     struct command *c = find_command(argv[0]);
     if (!c) {
@@ -132,6 +134,12 @@ static int run_command(char *line)
 
     int args;
     for (args=0; c->arg[args].name; args++) {}
+
+    if (argc > args+1) {
+        printf("Too many arguments for command '%s'\n", argv[0]);
+        status = EINVAL;
+        goto done;
+    }
 
     argv = xrealloc(argv, (1+args+1) * sizeof(*argv));
     char **v = argv + 1; // start past command name.
