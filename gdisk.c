@@ -293,15 +293,21 @@ static struct partition_table blank_table(struct device *dev)
     return t;
 }
 
-static void gpt_crc(struct partition_table *t, struct gpt_header *h)
+static void update_gpt_crc(struct gpt_header *h, struct gpt_partition *p)
 {
-    h->partition_crc32 = gpt_partition_crc32(h, t->partition);
+    h->partition_crc32 = gpt_partition_crc32(h, p);
     h->header_crc32 = gpt_header_crc32(h);
 }
 
-static bool gpt_crc_valid(struct partition_table *t, struct gpt_header *h)
+static void update_table_crc(struct partition_table *t)
 {
-    return h->partition_crc32 == gpt_partition_crc32(h, t->partition) && h->header_crc32 == gpt_header_crc32(h);
+    update_gpt_crc(t->header,     t->partition);
+    update_gpt_crc(t->alt_header, t->partition);
+}
+
+static bool gpt_crc_valid(struct gpt_header *h, struct gpt_partition *p)
+{
+    return h->partition_crc32 == gpt_partition_crc32(h, p) && h->header_crc32 == gpt_header_crc32(h);
 }
 
 static void utf16_from_ascii(uint16_t *utf16le, char *ascii)
@@ -337,8 +343,7 @@ static struct partition_table gpt_table_from_mbr(struct device *dev)
         }
     }
     t.options.mbr_sync = true;
-    gpt_crc(&t, t.header);
-    gpt_crc(&t, t.alt_header);
+    update_table_crc(&t);
     return t;
 }
 static int gpt_from_mbr(char **arg)
@@ -409,9 +414,9 @@ static struct partition_table read_table(struct device *dev)
     t.partition = get_sectors(dev, 2, divide_round_up(t.header->partition_entry_size * t.header->partition_entries,dev->sector_size));
     gpt_partition_to_host(t.partition, t.header->partition_entries);
 
-    if (!gpt_crc_valid(&t, t.header))
+    if (!gpt_crc_valid(t.header, t.partition))
         printf("header CRC not valid\n");
-    if (!gpt_crc_valid(&t, t.alt_header))
+    if (!gpt_crc_valid(t.alt_header, t.partition))
         printf("alt header CRC not valid\n");
 
     t.mbr = read_mbr(dev);
