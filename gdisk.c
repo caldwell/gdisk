@@ -572,8 +572,10 @@ static int command_delete_partition(char **arg)
     }
     memset(&g_table.partition[index], 0, sizeof(g_table.partition[index]));
     int mbr_alias = get_mbr_alias(g_table, index);
-    if (g_table.options.mbr_sync && mbr_alias != -1)
+    if (g_table.options.mbr_sync && mbr_alias != -1) {
         memset(&g_table.mbr.partition[mbr_alias], 0, sizeof(*g_table.mbr.partition));
+        g_table.alias[mbr_alias] = -1;
+    }
     return 0;
 }
 
