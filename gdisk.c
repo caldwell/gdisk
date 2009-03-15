@@ -461,6 +461,100 @@ static int command_compact_and_sort(char **arg)
 }
 command_add("compact-and-sort", command_compact_and_sort, "Remove \"holes\" from table and sort entries in ascending order");
 
+static struct gpt_partition *find_unused_partition(struct partition_table t)
+{
+    for (int i=0; i<t.header->partition_entries; i++)
+        if (guid_eq(gpt_partition_type_empty, g_table.partition[i].partition_type))
+            return &g_table.partition[i];
+    return NULL;
+}
+
+static uint64_t find_free_space(struct partition_table unsorted, uint64_t blocks)
+{
+    // To make this sane we sort the partition table first.
+    struct partition_table t = dup_table(unsorted);
+    compact_and_sort(&t);
+
+    uint64_t free_start = t.header->first_usable_lba;
+    for (int p=0; p<t.header->partition_entries; p++) {
+        if (guid_eq(gpt_partition_type_empty, t.partition[p].partition_type))
+            break;
+        if (t.partition[p].first_lba - free_start >= blocks)
+            goto done;
+        free_start = t.partition[p].last_lba + 1;
+    }
+    // Check for it fitting in the end (probably the most common case)
+    if (t.header->last_usable_lba+1 - free_start >= blocks)
+        goto done;
+
+    free_start = -1LL;    // If we got here the was no room.
+
+  done:
+    free_table(t);
+    return free_start;
+}
+
+static GUID type_guid_from_string(char *s)
+{
+    for (int t=0; gpt_partition_type[t].name; t++)
+        if (strcasecmp(s, gpt_partition_type[t].name) == 0)
+            return gpt_partition_type[t].guid;
+    return guid_from_string(s);
+}
+
+static int command_create_partition(char **arg)
+{
+    struct gpt_partition part = {};
+    part.partition_type = type_guid_from_string(arg[1]);
+    if (guid_eq(bad_guid, part.partition_type)) {
+        fprintf(stderr, "Unknown GUID format: \"%s\"\n", arg[1]);
+        return EINVAL;
+    }
+
+    part.partition_guid = arg[7] ? guid_from_string(arg[7]) : guid_create();
+    if (guid_eq(bad_guid, part.partition_guid)) {
+        fprintf(stderr, "Unknown GUID format: \"%s\"\n", arg[7]);
+        return EINVAL;
+    }
+
+    uint64_t size = human_size(arg[2]);
+    uint64_t blocks = divide_round_up(size, g_table.dev->sector_size);
+    part.first_lba = arg[4] ? strtoull(arg[4], NULL, 0) : find_free_space(g_table, blocks);
+    if (part.first_lba == -1LL) {
+        fprintf(stderr, "Couldn't find %"PRId64" blocks (%"PRId64", %s) of free space.\n", blocks, size, human_string(size));
+        return ENOSPC;
+    }
+    part.last_lba = arg[5] ? strtoull(arg[5], NULL, 0) : part.first_lba + blocks;
+    part.attributes = 0 | (arg[6] ? PA_SYSTEM_PARTITION : 0);
+    utf16_from_ascii(part.name, arg[3] ? arg[3] : "");
+
+    dump_partition(&part);
+
+    struct gpt_partition *p = find_unused_partition(g_table);
+    if (!p) {
+        fprintf(stderr, "Partition table is full.\n");
+        return ENOSPC;
+    }
+
+    *p = part;
+
+    if (g_table.options.mbr_sync) {
+        // Sync new partition to MBR!
+    }
+
+    return 0;
+}
+
+command_add("new", command_create_partition, "Create a new partition entry in the table",
+            command_arg("type",      C_Partition_Type, "Type of new partition"),
+            command_arg("size",      C_Number, "Size of the new partition"),
+            command_arg("label",     C_String|C_Optional, "The name of the new partition"),
+            command_arg("first_lba", C_String|C_Optional, "The first block of the new partition"),
+            command_arg("last_lba",  C_String|C_Optional, "The last block of the new partition (this overrides the size argument)"),
+            command_arg("system",    C_Flag, "Set the \"System Partition\" attribute"),
+            command_arg("guid",      C_String|C_Optional, "The GUID of the new partition")
+            );
+
 static int get_mbr_alias(struct partition_table t, int index)
 {
     for (int m=0; m<lengthof(t.alias); m++)
