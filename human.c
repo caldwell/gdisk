@@ -20,5 +20,5 @@ char *human_units(long long x)
 
 char *human_string(long long size)
 {
-    return csprintf("%.2f %s", human_format(size));
+    return csprintf("%.2f %2s", human_format(size));
 }
