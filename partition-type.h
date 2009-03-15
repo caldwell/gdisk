@@ -12,5 +12,7 @@ struct gpt_partition_type {
 extern struct gpt_partition_type gpt_partition_type[];
 extern GUID gpt_partition_type_empty;
 
+extern char *mbr_partition_type[256];
+
 #endif /* __PARTITION_TYPE_H__ */
 
