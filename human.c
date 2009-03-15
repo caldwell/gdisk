@@ -10,7 +10,7 @@
 float human_number(long long x)
 {
     float n = x;
-    while (n > 1024)
+    while (n >= 1024)
         n /= 1024;
     return n;
 }
