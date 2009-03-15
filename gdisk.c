@@ -446,6 +446,23 @@ static int get_mbr_alias(struct partition_table t, int index)
     return -1;
 }
 
+static int command_delete_partition(char **arg)
+{
+    int index = strtol(arg[1], NULL, 0);
+    if (index < 0 || index >= g_table.header->partition_entries) {
+        fprintf(stderr, "Bad index '%d'. Should be between 0 and %d (inclusive)\n", index, g_table.header->partition_entries-1);
+        return EINVAL;
+    }
+    memset(&g_table.partition[index], 0, sizeof(g_table.partition[index]));
+    int mbr_alias = get_mbr_alias(g_table, index);
+    if (g_table.options.mbr_sync && mbr_alias != -1)
+        memset(&g_table.mbr.partition[mbr_alias], 0, sizeof(*g_table.mbr.partition));
+    return 0;
+}
+
+command_add("delete", command_delete_partition, "Delete a partition from the table",
+            command_arg("index",     C_Number, "The index number of the partition. The first partitiion is partition zero"));
+
 static unsigned long partition_sectors(struct partition_table t)
 {
     return divide_round_up(t.header->partition_entry_size * t.header->partition_entries, t.dev->sector_size);
