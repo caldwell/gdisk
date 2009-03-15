@@ -334,11 +334,16 @@ static struct partition_table gpt_table_from_mbr(struct device *dev)
 
             utf16_from_ascii(t.partition[gp].name, csprintf("MBR %d\n", mp+1));
 
-            switch (t.mbr.partition[mp].partition_type) {
-                case 0x83: t.partition[gp].partition_type = GUID(EBD0A0A2,B9E5,4433,87C0,68B6B72699C7); break;
-                case 0x82: t.partition[gp].partition_type = GUID(0657FD6D,A4AB,43C4,84E5,0933C84B4F4F); break;
-                default:   t.partition[gp].partition_type = GUID(024DEE41,33E7,11D3,9D69,0008C781F39F); break;
-            }
+            for (int i=0; gpt_partition_type[i].name; i++)
+                for (int j=0; gpt_partition_type[i].mbr_equivalent[j]; j++)
+                    if (t.mbr.partition[mp].partition_type == gpt_partition_type[i].mbr_equivalent[j]) {
+                        t.partition[gp].partition_type = gpt_partition_type[i].guid;
+                        goto found;
+                    }
+            // Not found, use gdisk specific guid to mean "unknown".
+            t.partition[gp].partition_type = GUID(b334117e,118d,11de,9b0f,001cc0952d53);
+
+          found:
             t.partition[gp].partition_guid = guid_create();
             t.alias[mp] = gp++;
         }

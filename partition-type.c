@@ -15,6 +15,8 @@ struct gpt_partition_type gpt_partition_type[] = {
     { "EFI System Partition",                     STATIC_GUID(C12A7328,F81F,11D2,BA4B,00A0C93EC93B), { 0xef } },
     { "BIOS Boot Partition",                      STATIC_GUID(21686148,6449,6E6F,744E,656564454649) },
 
+    { "gdisk unknown",                            STATIC_GUID(b334117e,118d,11de,9b0f,001cc0952d53) }, // Made up by me
+
     { "Windows/Reserved",                         STATIC_GUID(E3C9E316,0B5C,4DB8,817D,F92DF00215AE) },
     { "Windows/Basic Data",                       STATIC_GUID(EBD0A0A2,B9E5,4433,87C0,68B6B72699C7), { 0x0c, 0x07 } },
     { "Windows/Logical Disk Manager metadata",    STATIC_GUID(5808C8AA,7E8F,42E0,85D2,E1E90434CFB3) },
