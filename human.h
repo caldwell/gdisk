@@ -4,6 +4,7 @@
 
 // Main interface
 char *human_string(long long size); // csprintf() based.
+long long human_size(char *human);
 
 
 // Low level interface usage:
