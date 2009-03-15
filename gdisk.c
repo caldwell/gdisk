@@ -86,20 +86,43 @@ int main(int c, char **v)
     //    warn("Couldn't write MBR sector");
 }
 
+char *next_word(char **line)
+{
+    return strsep(line, " \t\f\r\n");
+}
+
+static char **parse_command(char *line)
+{
+    char **v = xcalloc(1, sizeof(char*));
+    int c = 0;
+
+    char *rest = line;
+    char *word;
+    while (word = next_word(&rest)) {
+        if (!*word) continue; // compact multiple consecutive separators
+        v = xrealloc(v, sizeof(char *) * (c+2));
+        v[c] = xstrdup(word);
+        v[c+1] = NULL;
+        c++;
+    }
+    return v;
+}
+
 static int run_command(char *line)
 {
     int status = 0;
-    char *l = line;
-    while (isspace(*l)) l++;
-    if (!*l) return 0; // Blank line
+    char **argv = parse_command(line);
+    if (!*argv) goto done; // Blank line
+
     foreach_autolist(struct command *c, command)
-        if (strcasecmp(c->name, l) == 0) {
+        if (strcasecmp(c->name, argv[0]) == 0) {
             int args;
             for (args=0; c->arg[args].name; args++) {}
-            char **argv = xcalloc(1+args+1, sizeof(*argv));
-            char **v = argv;
-            *v++ = xstrdup(c->name);
+
+            argv = xrealloc(argv, (1+args+1) * sizeof(*argv));
+            char **v = argv + 1; // start past command name.
             for (int a=0; a<args; a++, v++) {
+                if (*v) continue; // Don't prompt for args entered on command line.
                 char *prompt = NULL;
                 asprintf(&prompt, "%s: %s ", c->name, c->arg[a].help);
                 if (!prompt) err(ENOMEM, "No memory for argument prompt");
@@ -124,16 +147,18 @@ static int run_command(char *line)
             status = c->handler(argv);
             if (status && status != ECANCELED) // ECANCELED is a special case meaning Quit!
                 warnc(status, "%s failed", c->name);
-          done:
-            if (argv)
-                for (int a=0; a<1+args; a++)
-                    free(argv[a]);
-            free(argv);
-            return status;
+            goto done;
         }
 
-    printf("Command not found: '%s'\n", l);
-    return EINVAL;
+    printf("Command not found: '%s'\n", argv[0]);
+    status = EINVAL;
+
+  done:
+    if (argv)
+        for (int a=0; argv[a]; a++)
+            free(argv[a]);
+    free(argv);
+    return status;
 }
 
 static int help(char **arg)
