@@ -363,7 +363,7 @@ static bool partition_entry_is_representable_in_mbr(struct gpt_partition entry)
     // MBR only has 32 bits for the LBA. So if the partition is further up the disk than that then it can't be represented in the MBR.
     return !guid_eq(gpt_partition_type_empty, entry.partition_type) &&
            entry.first_lba < 0x100000000LL &&
-           entry.last_lba  < 0x100000000LL;
+           entry.last_lba - entry.first_lba < 0x100000000LL;
 }
 
 static void create_mbr_alias_table(struct partition_table *t)
