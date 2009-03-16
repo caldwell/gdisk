@@ -729,6 +729,85 @@ static unsigned long partition_sectors(struct partition_table t)
     return divide_round_up(t.header->partition_entry_size * t.header->partition_entries, t.dev->sector_size);
 }
 
+
+struct write_vec {
+    void *buffer;
+    unsigned long long block;
+    unsigned long long blocks;
+    char *name;
+};
+
+struct write_image {
+    struct write_vec vec[10];
+    int count;
+};
+
+struct write_image image_from_table(struct partition_table t)
+{
+    struct write_image image = { .count = 5 };
+
+    // *.front: mbr, then gpt header, then partitions
+    image.vec[0] = (struct write_vec) {
+        .buffer = sector_from_mbr(t.dev, t.mbr),
+        .block  = 0,
+        .blocks = 1,
+        .name = xstrdup("mbr"),
+    };
+
+    void *buffer = xcalloc(1, t.dev->sector_size);
+    gpt_header_from_host(t.header);
+    memcpy(buffer, t.header, sizeof(*t.header));
+    gpt_header_to_host(t.header);
+
+    image.vec[1] = (struct write_vec) {
+        .buffer = buffer,
+        .block  = t.header->my_lba,
+        .blocks = 1,
+        .name = xstrdup("gpt_header"),
+    };
+
+    buffer = xcalloc(t.header->partition_entries, t.dev->sector_size);
+    gpt_partition_from_host(t.partition, t.header->partition_entries);
+    memcpy(buffer, t.partition, sizeof(*t.partition) * t.header->partition_entries);
+    gpt_partition_to_host(t.partition, t.header->partition_entries);
+
+    image.vec[2] = (struct write_vec) {
+        .buffer = buffer,
+        .block  = t.header->partition_entry_lba,
+        .blocks = partition_sectors(t),
+        .name = xstrdup("gpt_partitions"),
+    };
+
+    image.vec[3] = (struct write_vec) {
+        .buffer = memdup(buffer, t.header->partition_entries * t.dev->sector_size),
+        .block  = t.alt_header->partition_entry_lba,
+        .blocks = partition_sectors(t),
+        .name = xstrdup("alt_gpt_partitions"),
+    };
+
+    buffer = xcalloc(1, t.dev->sector_size);
+    gpt_header_from_host(t.alt_header);
+    memcpy(buffer, t.alt_header, sizeof(*t.alt_header));
+    gpt_header_to_host(t.alt_header);
+
+    image.vec[4] = (struct write_vec) {
+        .buffer = buffer,
+        .block  = t.alt_header->my_lba,
+        .blocks = 1,
+        .name = xstrdup("alt_gpt_header"),
+    };
+
+    return image;
+}
+
+void free_image(struct write_image image)
+{
+    for (int i=0; i < image.count; i++) {
+        free(image.vec[i].buffer);
+        free(image.vec[i].name);
+    }
+}
+
 static int export_table(struct partition_table t, char *filename)
 {
     FILE *info = NULL, *front = NULL, *back = NULL;
