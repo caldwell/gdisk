@@ -33,7 +33,6 @@ static char *command_completion(const char *text, int state);
 static char *partition_type_completion(const char *text, int state);
 static struct partition_table dup_table(struct partition_table t);
 static unsigned long partition_sectors(struct partition_table t);
-static void backup_table();
 static void dump_dev(struct device *dev);
 static void dump_header(struct gpt_header *header);
 static void dump_partition(struct gpt_partition *p);
@@ -856,12 +855,25 @@ command_add("export", command_export, "Save table to a file (not to a device)",
             command_arg("filename", C_File, "Filename to as a base use for exported files"));
 
 
-static void backup_table()
+static struct write_image image_from_image(struct write_image image, struct device *dev)
+{
+    struct write_image on_disk = image;
+    for (int i=0; i < on_disk.count; i++) {
+        on_disk.vec[i].buffer = get_sectors(dev, on_disk.vec[i].block, on_disk.vec[i].blocks);
+        on_disk.vec[i].name = xstrdup(on_disk.vec[i].name);
+    }
+    return on_disk;
+}
+
+static int write_table(struct partition_table t, bool force)
 {
     char *HOME = getenv("HOME");
-    if (!HOME) return;
+    if (!HOME) {
+        fprintf(stderr, "Couldn't find $HOME environment variable. Punting.\n");
+        if (!force) return ECANCELED;
+    }
 
-    char *dev_name = xstrdup(g_table_orig.dev->name);
+    char *dev_name = xstrdup(t.dev->name);
 
     for (int i=0; dev_name[i]; i++)
         if (!isalnum(dev_name[i]))
@@ -876,10 +888,42 @@ static void backup_table()
     time_t now = time(NULL);
     strftime(backup_path + strlen(backup_path), sizeof(backup_path) - strlen(backup_path),
              "-%G-%m-%d-%H-%M-%S", localtime(&now));
+    free(dev_name);
 
-    fprintf(stderr, "backing up current partition table to %s\n", backup_path);
-    export_table(g_table_orig, backup_path);
+    struct write_image image = image_from_table(t);
+    struct write_image backup = image_from_image(image, t.dev);
+    int status = export_image(backup, t.dev, backup_path);
+    if (status) {
+        warn("Error writing backup of table");
+        if (!force) return ECANCELED;
+    }
+    free_image(backup);
+
+    int err = 0;
+    // for (int i=0; i<image.count; i++)
+    //     if (!device_write(t.dev, image.vec[i].buffer, image.vec[i].block, image.vec[i].blocks)) {
+    //         err = errno;
+    //         warn("Error while writing %s to %s", image.vec[i].name, t.dev->name);
+    //         if (i > 0)
+    //             fprintf(stderr, "The partition table on your disk is now most likely corrupt.\n");
+    //         break;
+    //     }
+    free_image(image);
+    return err;
 }
+
+int command_write(char **arg)
+{
+    int status = write_table(g_table, !!arg[1]);
+    if (status == ECANCELED) {
+        status = ENOENT; // ECANCELED will quit the program if we return it.
+        fprintf(stderr, "Table not written because a backup of the existing data could not be made.\n"
+                "Re-run with the --force option to save without a backup.\n");
+    }
+    return status;
+}
+command_add("write", command_write, "Write the partition table back to the disk",
+            command_arg("force", C_Flag, "Force table to be written even if backup cannot be saved"));
 
 static int command_print(char **arg)
 {
