@@ -523,6 +523,30 @@ static GUID type_guid_from_string(char *s)
     return guid_from_string(s);
 }
 
+static bool sync_partition_to_mbr(struct partition_table *t, int gpt_index)
+{
+    int mbr_type;
+    struct gpt_partition *p = &t->partition[gpt_index];
+    if (!partition_entry_is_representable_in_mbr(*p) ||
+        !(mbr_type = find_mbr_equivalent(p->partition_type)))
+        return false;
+
+    for (int i=0; i < lengthof(t->mbr.partition); i++)
+        if (t->mbr.partition[i].partition_type == 0) {
+            t->mbr.partition[i] = (struct mbr_partition) {
+                .status = 0,
+                .first_sector = {}, // Need disk geometry to do this properly
+                .last_sector  = {}, // Need disk geometry to do this properly
+                .partition_type = mbr_type,
+                .first_sector_lba = p->first_lba,
+                .sectors = p->last_lba - p->first_lba + 1,
+            };
+            t->alias[i] = gpt_index;
+            return true;
+        }
+    return false;
+}
+
 static int command_create_partition(char **arg)
 {
     struct gpt_partition part = {};
@@ -559,25 +583,8 @@ static int command_create_partition(char **arg)
 
     *p = part;
 
-    int mbr_type;
-    if (g_table.options.mbr_sync &&
-        partition_entry_is_representable_in_mbr(part) &&
-        (mbr_type = find_mbr_equivalent(p->partition_type))) {
-
-        for (int i=0; i < lengthof(g_table.mbr.partition); i++)
-            if (g_table.mbr.partition[i].partition_type == 0) {
-                g_table.mbr.partition[i] = (struct mbr_partition) {
-                    .status = 0,
-                    .first_sector = {}, // Need disk geometry to do this properly
-                    .last_sector  = {}, // Need disk geometry to do this properly
-                    .partition_type = mbr_type,
-                    .first_sector_lba = p->first_lba,
-                    .sectors = p->last_lba - p->first_lba + 1,
-                };
-                g_table.alias[i] = p - g_table.partition;
-                break;
-            }
-    }
+    if (g_table.options.mbr_sync)
+        sync_partition_to_mbr(&g_table, p - g_table.partition);
 
     return 0;
 }
