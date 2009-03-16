@@ -631,6 +631,24 @@ static int command_delete_partition(char **arg)
 command_add("delete", command_delete_partition, "Delete a partition from the table",
             command_arg("index",     C_Number, "The index number of the partition. The first partitiion is partition zero"));
 
+static int command_sync_mbr(char **arg)
+{
+    if (g_table.options.mbr_sync && !arg[1]) {
+        fprintf(stderr, "MBR is already synced to GPT. Use --force flag to force a re-sync.\n");
+        return EEXIST;
+    }
+    for (int i=0; i < lengthof(g_table.mbr.partition); i++)
+        delete_mbr_partition(&g_table, i);
+
+    for (int i=0; i < g_table.header->partition_entries; i++)
+        sync_partition_to_mbr(&g_table, i);
+
+    g_table.options.mbr_sync = true;
+    return 0;
+}
+command_add("sync-mbr", command_sync_mbr, "Create a new MBR partition table with data from the GPT partition table",
+            command_arg("force",     C_Flag, "Force a re-sync if the MBR already looks synced"));
+
 static unsigned long partition_sectors(struct partition_table t)
 {
     return divide_round_up(t.header->partition_entry_size * t.header->partition_entries, t.dev->sector_size);
