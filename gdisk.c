@@ -323,6 +323,9 @@ static struct partition_table gpt_table_from_mbr(struct device *dev)
     t.mbr = read_mbr(dev);
     for (int mp=0,gp=0; mp<lengthof(t.mbr.partition); mp++) {
         if (t.mbr.partition[mp].partition_type) {
+            if (t.mbr.partition[mp].partition_type == 0xee)
+                continue;
+
             t.partition[gp].first_lba = t.mbr.partition[mp].first_sector_lba;
             t.partition[gp].last_lba  = t.mbr.partition[mp].first_sector_lba + t.mbr.partition[mp].sectors - 1;
 
