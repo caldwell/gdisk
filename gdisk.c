@@ -810,54 +810,35 @@ void free_image(struct write_image image)
 
 static int export_table(struct partition_table t, char *filename)
 {
-    FILE *info = NULL, *front = NULL, *back = NULL;
+    struct write_image image = image_from_table(t);
+
+    FILE *info = NULL, *data = NULL;
     int err = 0;
-    if ((front = fopen(csprintf("%s.front", filename), "wb")) == NULL) { err = errno; warn("Couldn't open %s.front", filename); goto done; }
-    if ((back  = fopen(csprintf("%s.back",  filename), "wb")) == NULL) { err = errno; warn("Couldn't open %s.back",  filename); goto done; }
-    if ((info  = fopen(csprintf("%s.info",  filename), "w"))  == NULL) { err = errno; warn("Couldn't open %s.info",  filename); goto done; }
+    if ((data = fopen(csprintf("%s.data", filename), "wb")) == NULL) { err = errno; warn("Couldn't open %s.data", filename); goto done; }
+    if ((info = fopen(csprintf("%s.info", filename), "w"))  == NULL) { err = errno; warn("Couldn't open %s.info", filename); goto done; }
 
-    // *.front: mbr, then gpt header, then partitions
-    void *sector = sector_from_mbr(t.dev, t.mbr);
-    if (fwrite(sector, t.dev->sector_size, 1, front) != 1) { err = errno; warn("Couldn't write mbr to %s.front", filename); goto done; }
-    free(sector);
-
-    gpt_header_from_host(t.header);
-    int wrote = fwrite(t.header, t.dev->sector_size, 1, front);
-    if (wrote != 1) err = errno;
-    gpt_header_to_host(t.header);
-    if (wrote != 1)  { warn("Couldn't write GPT header to %s.front", filename); goto done; }
-
-    gpt_partition_from_host(t.partition, t.header->partition_entries);
-    wrote = fwrite(t.partition, t.dev->sector_size, partition_sectors(t), front);
-    if (wrote != partition_sectors(t)) err = errno;
-    gpt_partition_to_host(t.partition, t.header->partition_entries);
-    if (wrote != partition_sectors(t))  { warn("Couldn't write partitions to %s.front", filename); goto done; }
-
-    // *.back: gpt partitions, then gpt_header
-    gpt_partition_from_host(t.partition, t.header->partition_entries);
-    wrote = fwrite(t.partition, t.dev->sector_size, partition_sectors(t), back);
-    if (wrote != partition_sectors(t)) err = errno;
-    gpt_partition_to_host(t.partition, t.header->partition_entries);
-    if (wrote != partition_sectors(t))  { warn("Couldn't write partitions to %s.back", filename); goto done; }
-
-    gpt_header_from_host(t.alt_header);
-    wrote = fwrite(t.alt_header, t.dev->sector_size, 1, back);
-    if (wrote != 1) err = errno;
-    gpt_header_to_host(t.alt_header);
-    if (wrote != 1)  { warn("Couldn't write Alternate GPT header to %s.back", filename); goto done; }
-
-    fprintf(info, "sector_size: %ld\n", t.dev->sector_size);
-    fprintf(info, "sector_count: %lld\n", t.dev->sector_count);
+    fprintf(info, "# sector_size: %ld\n", t.dev->sector_size);
+    fprintf(info, "# sector_count: %lld\n", t.dev->sector_count);
     fprintf(info, "# device: %s\n", t.dev->name);
-    fprintf(info, "# dd if=%s of=%s bs=%ld count=%ld\n",
-            csprintf("%s.front", filename), t.dev->name, t.dev->sector_size, 1+1+partition_sectors(t));
-    fprintf(info, "# dd if=%s of=%s seek=%"PRId64" bs=%ld count=%ld\n",
-            csprintf("%s.back", filename), t.dev->name, t.alt_header->partition_entry_lba, t.dev->sector_size, 1+partition_sectors(t));
+
+    unsigned skip=0;
+    for (int i=0; i < image.count; i++) {
+        int wrote = fwrite(image.vec[i].buffer, t.dev->sector_size, image.vec[i].blocks, data);
+        if (wrote != image.vec[i].blocks) {
+            err = errno;
+            warn("Couldn't write %s to %s.data", image.vec[i].name, filename);
+            goto done;
+        }
+        fprintf(info, "# %s:\ndd if=\"%s.data\" of=\"%s\" bs=%ld skip=%d seek=%lld count=%lld\n",
+                image.vec[i].name,
+                filename, t.dev->name, t.dev->sector_size,
+                skip, image.vec[i].block, image.vec[i].blocks);
+        skip += image.vec[i].blocks;
+    }
 
   done:
-    if (front) fclose(front);
-    if (back)  fclose(back);
-    if (info)  fclose(info);
+    if (data) fclose(data);
+    if (info) fclose(info);
     return err;
 }
 
