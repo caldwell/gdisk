@@ -309,11 +309,11 @@ static bool gpt_crc_valid(struct gpt_header *h, struct gpt_partition *p)
     return h->partition_crc32 == gpt_partition_crc32(h, p) && h->header_crc32 == gpt_header_crc32(h);
 }
 
-static void utf16_from_ascii(uint16_t *utf16le, char *ascii)
+static void utf16_from_ascii(uint16_t *utf16le, char *ascii, int n)
 {
-    do {
-        *utf16le++ = *ascii;
-    } while (*ascii++);
+    if (!n) return;
+    while (--n && (*utf16le++ = *ascii++)) {}
+    *utf16le = '\0';
 }
 
 static struct partition_table gpt_table_from_mbr(struct device *dev)
@@ -330,7 +330,7 @@ static struct partition_table gpt_table_from_mbr(struct device *dev)
                 printf("ouch, mbr partition %d [%"PRId64"d,%"PRId64"d] outside of usable gpt space [%"PRId64"d,%"PRId64"d]\n",
                        mp+1, t.partition[gp].first_lba, t.partition[gp].last_lba, t.header->first_usable_lba, t.header->last_usable_lba);
 
-            utf16_from_ascii(t.partition[gp].name, csprintf("MBR %d\n", mp+1));
+            utf16_from_ascii(t.partition[gp].name, csprintf("MBR %d\n", mp+1), lengthof(t.partition[gp].name));
 
             for (int i=0; gpt_partition_type[i].name; i++)
                 for (int j=0; gpt_partition_type[i].mbr_equivalent[j]; j++)
@@ -569,7 +569,7 @@ static int command_create_partition(char **arg)
     }
     part.last_lba = arg[5] ? strtoull(arg[5], NULL, 0) : part.first_lba + blocks;
     part.attributes = 0 | (arg[6] ? PA_SYSTEM_PARTITION : 0);
-    utf16_from_ascii(part.name, arg[3] ? arg[3] : "");
+    utf16_from_ascii(part.name, arg[3] ? arg[3] : "", lengthof(part.name));
 
     dump_partition(&part);
 
