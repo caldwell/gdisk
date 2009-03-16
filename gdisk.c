@@ -659,6 +659,71 @@ static int command_sync_mbr(char **arg)
 command_add("sync-mbr", command_sync_mbr, "Create a new MBR partition table with data from the GPT partition table",
             command_arg("force",     C_Flag, "Force a re-sync if the MBR already looks synced"));
 
+
+static int command_edit(char **arg)
+{
+    int index = choose_partition(arg[1]);
+    if (index < 0) return EINVAL;
+
+    if (arg[2]) {
+        GUID type = type_guid_from_string(arg[2]);
+        if (guid_eq(bad_guid, type)) {
+            fprintf(stderr, "Not a valid type string or unknown GUID format: \"%s\"\n", arg[2]);
+            return EINVAL;
+        }
+        g_table.partition[index].partition_type = type;
+
+        int mbr_alias = get_mbr_alias(g_table, index);
+        int mbr_type = find_mbr_equivalent(type);
+        if (g_table.options.mbr_sync && mbr_alias != -1 && mbr_type)
+            g_table.mbr.partition[mbr_alias].partition_type = mbr_type;
+    }
+
+    if (arg[3])
+        utf16_from_ascii(g_table.partition[index].name, arg[3], lengthof(g_table.partition[index].name));
+
+    if (arg[4]) {
+        GUID guid = guid_from_string(arg[4]);
+        if (guid_eq(bad_guid, guid)) {
+            fprintf(stderr, "Bad GUID: \"%s\"\n", arg[4]);
+            return EINVAL;
+        }
+        g_table.partition[index].partition_guid = guid;
+    }
+
+    return 0;
+}
+command_add("edit", command_edit, "Change parts of a partition",
+            command_arg("index",     C_Number,                    "The index number of the partition. The first partitiion is partition zero"),
+            command_arg("type",      C_Partition_Type|C_Optional, "Type of partition"),
+            command_arg("label",     C_String|C_Optional,         "The name of the new partition"),
+            command_arg("guid",      C_String|C_Optional,         "The GUID of the new partition"));
+
+static int command_edit_attributes(char **arg)
+{
+    int index = choose_partition(arg[1]);
+    if (index < 0) return EINVAL;
+
+    uint64_t val = strcmp(arg[3], "system") == 0 ? PA_SYSTEM_PARTITION : strtoull(arg[3], NULL, 0);
+
+    if      (strcmp(arg[2], "set") == 0)
+        g_table.partition[index].attributes |=  val;
+    else if (strcmp(arg[2], "clear") == 0)
+        g_table.partition[index].attributes &= ~val;
+    else {
+        fprintf(stderr, "command \"%s\" is not \"set\" or \"clear\".\n", arg[2]);
+        return EINVAL;
+    }
+    printf("Attributes is now %"PRIx64" after %s %016"PRIx64"\n",
+           g_table.partition[index].attributes, strcmp(arg[2], "set") == 0 ? "setting" : "clearing", val);
+
+    return 0;
+}
+command_add("edit-attributes", command_edit_attributes, "Change parts of a partition",
+            command_arg("index",      C_Number, "The index number of the partition. The first partitiion is partition zero"),
+            command_arg("command",    C_String, "\"set\" or \"clear\" -- what you want to do to the bits"),
+            command_arg("attributes", C_String, "The bits you want to set or clear as a number (or \"system\" for \"System Partition\" attribute)"));
+
 static unsigned long partition_sectors(struct partition_table t)
 {
     return divide_round_up(t.header->partition_entry_size * t.header->partition_entries, t.dev->sector_size);
