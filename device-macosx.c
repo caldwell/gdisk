@@ -9,6 +9,7 @@
 #include <err.h>
 #include "device.h"
 
+#warning "TODO: Pull as much of this as possible into device-fd.c so that linux and the mac can share more code."
 struct device_macosx {
     struct device dev;
     int fd;

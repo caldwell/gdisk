@@ -89,6 +89,7 @@ int main(int c, char **v)
 
 char *next_word(char **line)
 {
+    #warning "TODO: Handle quotes for things with spaces"
     return strsep(line, " \t\f\r\n");
 }
 
@@ -156,6 +157,7 @@ static int run_command(char *line)
         if (C_Type(c->arg[a].type) == C_File)
             rl_completion_entry_function = (void*)rl_filename_completion_function;
         else if (C_Type(c->arg[a].type) == C_Partition_Type)
+            #warning "BUG: partition type completion doesn't do spaces right"
             rl_completion_entry_function = (void*)partition_type_completion;
 
         *v = readline(prompt);
@@ -435,8 +437,14 @@ static struct partition_table read_table(struct device *dev)
 
     create_mbr_alias_table(&t);
 
+    #warning "TODO: Add sanity checking from EFI spec"
+    #warning "TODO: Capture both sets of partition tables in case on has a bad crc."
+
     return t;
 }
+
+#warning "TODO: Add 'fix' command that moves alternate partition and header to end of disk"
+#warning "TODO: Add 'new-guids' command (with better name) that recreates all the guids in the table (run it after an image copy)"
 
 static void free_table(struct partition_table t)
 {
@@ -900,6 +908,7 @@ static int write_table(struct partition_table t, bool force)
     free_image(backup);
 
     int err = 0;
+    #warning "TODO: Figure out how to test this and then uncomment it!"
     // for (int i=0; i<image.count; i++)
     //     if (!device_write(t.dev, image.vec[i].buffer, image.vec[i].block, image.vec[i].blocks)) {
     //         err = errno;
