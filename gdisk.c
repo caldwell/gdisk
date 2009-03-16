@@ -588,12 +588,12 @@ static int command_create_partition(char **arg)
 }
 
 command_add("new", command_create_partition, "Create a new partition entry in the table",
-            command_arg("type",      C_Partition_Type, "Type of new partition"),
-            command_arg("size",      C_Number, "Size of the new partition"),
+            command_arg("type",      C_Partition_Type,    "Type of new partition"),
+            command_arg("size",      C_Number,            "Size of the new partition"),
             command_arg("label",     C_String|C_Optional, "The name of the new partition"),
             command_arg("first_lba", C_String|C_Optional, "The first block of the new partition"),
             command_arg("last_lba",  C_String|C_Optional, "The last block of the new partition (this overrides the size argument)"),
-            command_arg("system",    C_Flag, "Set the \"System Partition\" attribute"),
+            command_arg("system",    C_Flag,              "Set the \"System Partition\" attribute"),
             command_arg("guid",      C_String|C_Optional, "The GUID of the new partition")
             );
 
