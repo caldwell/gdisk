@@ -607,6 +607,12 @@ static int get_mbr_alias(struct partition_table t, int index)
     return -1;
 }
 
+static void delete_mbr_partition(struct partition_table *t, int mbr_index)
+{
+    memset(&t->mbr.partition[mbr_index], 0, sizeof(*t->mbr.partition));
+    t->alias[mbr_index] = -1;
+}
+
 static int command_delete_partition(char **arg)
 {
     int index = strtol(arg[1], NULL, 0);
@@ -617,10 +623,8 @@ static int command_delete_partition(char **arg)
     memset(&g_table.partition[index], 0, sizeof(g_table.partition[index]));
     update_table_crc(&g_table);
     int mbr_alias = get_mbr_alias(g_table, index);
-    if (g_table.options.mbr_sync && mbr_alias != -1) {
-        memset(&g_table.mbr.partition[mbr_alias], 0, sizeof(*g_table.mbr.partition));
-        g_table.alias[mbr_alias] = -1;
-    }
+    if (g_table.options.mbr_sync && mbr_alias != -1)
+        delete_mbr_partition(&g_table, mbr_alias);
     return 0;
 }
 
