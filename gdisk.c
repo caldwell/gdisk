@@ -165,8 +165,6 @@ static int run_command(char *line)
     }
 
     status = c->handler(argv);
-    if (status && status != ECANCELED) // ECANCELED is a special case meaning Quit!
-        warnc(status, "%s failed", c->name);
 
   done:
     if (argv)
