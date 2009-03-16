@@ -169,7 +169,7 @@ static int run_command(char *line)
 
   done:
     if (argv)
-        for (int a=0; argv[a]; a++)
+        for (int a=0; a<1+args; a++)
             free(argv[a]);
     free(argv);
     return status;
