@@ -611,13 +611,25 @@ static void delete_mbr_partition(struct partition_table *t, int mbr_index)
     t->alias[mbr_index] = -1;
 }
 
+static int choose_partition(char *string)
+{
+    int index = strtol(string, NULL, 0);
+    if (index < 0 || index >= g_table.header->partition_entries) {
+        fprintf(stderr, "Bad index '%d'. Should be between 0 and %d (inclusive).\n", index, g_table.header->partition_entries-1);
+        return -1;
+    }
+    if (guid_eq(g_table.partition[index].partition_type, gpt_partition_type_empty)) {
+        fprintf(stderr, "Partition '%d' is empty.\n", index);
+        return -1;
+    }
+    return index;
+}
+
 static int command_delete_partition(char **arg)
 {
-    int index = strtol(arg[1], NULL, 0);
-    if (index < 0 || index >= g_table.header->partition_entries) {
-        fprintf(stderr, "Bad index '%d'. Should be between 0 and %d (inclusive)\n", index, g_table.header->partition_entries-1);
-        return EINVAL;
-    }
+    int index = choose_partition(arg[1]);
+    if (index < 0) return EINVAL;
+
     memset(&g_table.partition[index], 0, sizeof(g_table.partition[index]));
     update_table_crc(&g_table);
     int mbr_alias = get_mbr_alias(g_table, index);
