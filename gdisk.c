@@ -808,22 +808,20 @@ void free_image(struct write_image image)
     }
 }
 
-static int export_table(struct partition_table t, char *filename)
+static int export_image(struct write_image image, struct device *dev, char *filename)
 {
-    struct write_image image = image_from_table(t);
-
     FILE *info = NULL, *data = NULL;
     int err = 0;
     if ((data = fopen(csprintf("%s.data", filename), "wb")) == NULL) { err = errno; warn("Couldn't open %s.data", filename); goto done; }
     if ((info = fopen(csprintf("%s.info", filename), "w"))  == NULL) { err = errno; warn("Couldn't open %s.info", filename); goto done; }
 
-    fprintf(info, "# sector_size: %ld\n", t.dev->sector_size);
-    fprintf(info, "# sector_count: %lld\n", t.dev->sector_count);
-    fprintf(info, "# device: %s\n", t.dev->name);
+    fprintf(info, "# sector_size: %ld\n", dev->sector_size);
+    fprintf(info, "# sector_count: %lld\n", dev->sector_count);
+    fprintf(info, "# device: %s\n", dev->name);
 
     unsigned skip=0;
     for (int i=0; i < image.count; i++) {
-        int wrote = fwrite(image.vec[i].buffer, t.dev->sector_size, image.vec[i].blocks, data);
+        int wrote = fwrite(image.vec[i].buffer, dev->sector_size, image.vec[i].blocks, data);
         if (wrote != image.vec[i].blocks) {
             err = errno;
             warn("Couldn't write %s to %s.data", image.vec[i].name, filename);
@@ -831,7 +829,7 @@ static int export_table(struct partition_table t, char *filename)
         }
         fprintf(info, "# %s:\ndd if=\"%s.data\" of=\"%s\" bs=%ld skip=%d seek=%lld count=%lld\n",
                 image.vec[i].name,
-                filename, t.dev->name, t.dev->sector_size,
+                filename, dev->name, dev->sector_size,
                 skip, image.vec[i].block, image.vec[i].blocks);
         skip += image.vec[i].blocks;
     }
@@ -840,6 +838,14 @@ static int export_table(struct partition_table t, char *filename)
     if (data) fclose(data);
     if (info) fclose(info);
     return err;
+}
+
+static int export_table(struct partition_table t, char *filename)
+{
+    struct write_image image = image_from_table(t);
+    int status = export_image(image, t.dev, filename);
+    free_image(image);
+    return status;
 }
 
 int command_export(char **arg)
