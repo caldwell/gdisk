@@ -89,7 +89,17 @@ int main(int c, char **v)
 
 char *next_word(char **line)
 {
-    #warning "TODO: Handle quotes for things with spaces"
+    if (!*line) return NULL;
+    if (**line == '"') {
+        char *s = ++*line; // skip quote
+        while (**line != '"' && **line != '\0')
+            ++*line;
+        if (**line)
+            *(*line)++ = '\0';
+        if (**line == '\0')
+            *line = NULL;
+        return s;
+    }
     return strsep(line, " \t\f\r\n");
 }
 
