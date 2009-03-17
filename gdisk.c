@@ -137,6 +137,15 @@ static int run_command(char *line)
     for (argc=0; argv[argc]; argc++) {}
     if (!argc) goto done; // Blank line
 
+    for (char **v = argv; *v; v++)
+        if (strchr(*v, '"')) {
+            fprintf(stderr, "Sorry, embedded quotes don't work (yet?). If you are trying to do\n"
+                    "'--arg=\"a b\"' then do '--arg \"a b\"' or '\"--arg=a b\"' instead.\n"
+                    "Yeah, that sucks. Send me a patch if it bugs you that much.\n");
+            status = EINVAL;
+            goto done;
+        }
+
     struct command *c = find_command(argv[0]);
     if (!c) {
         printf("Command not found: '%s'\n", argv[0]);
