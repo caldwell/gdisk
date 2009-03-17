@@ -42,6 +42,9 @@ static void *xrealloc(void *old, size_t count);
 static char *xstrdup(char *s);
 static void *memdup(void *mem, size_t size);
 static size_t sncatprintf(char *buffer, size_t space, char *format, ...) __attribute__ ((format (printf, 3, 4)));
+static char *tr(char *in, char *from, char *to);
+static char *trdup(char *in, char *from, char *to);
+static char *ctr(char *in, char *from, char *to);
 
 static void usage(char *me, int exit_code)
 {
@@ -301,10 +304,13 @@ static char *command_completion(const char *text, int state)
 
 static char *partition_type_completion(const char *text, int state)
 {
-    for (int i=0, s=0; gpt_partition_type[i].name; i++)
-        if (strncmp(text, gpt_partition_type[i].name, strlen(text)) == 0 &&
+    for (int i=0, s=0; gpt_partition_type[i].name; i++) {
+        char *_name = trdup(gpt_partition_type[i].name, " ", "_");
+        if (strncmp(text, _name, strlen(text)) == 0 &&
             s++ == state)
-            return xstrdup(gpt_partition_type[i].name);
+            return _name;
+        free(_name);
+    }
     return NULL;
 }
 
@@ -578,9 +584,10 @@ static uint64_t find_free_space(struct partition_table unsorted, uint64_t blocks
 
 static GUID type_guid_from_string(char *s)
 {
-    for (int t=0; gpt_partition_type[t].name; t++)
-        if (strcasecmp(s, gpt_partition_type[t].name) == 0)
+    for (int t=0; gpt_partition_type[t].name; t++) {
+        if (strcasecmp(s, ctr(gpt_partition_type[t].name, " ", "_")) == 0)
             return gpt_partition_type[t].guid;
+    }
     return guid_from_string(s);
 }
 
@@ -1180,4 +1187,24 @@ static size_t sncatprintf(char *buffer, size_t space, char *format, ...)
     int count = vsnprintf(buffer + length, space - length, format, ap);
     va_end(ap);
     return count;
+}
+
+static char *tr(char *in, char *from, char *to)
+{
+    char *out = in;
+    for (int i=0; out[i]; i++) {
+        char *c = strchr(from, out[i]);
+        if (c) out[i] = to[c-from];
+    }
+    return out;
+}
+
+static char *trdup(char *in, char *from, char *to)
+{
+    return tr(xstrdup(in), from, to);
+}
+
+static char *ctr(char *in, char *from, char *to)
+{
+    return tr(csprintf("%s", in), from, to);
 }
