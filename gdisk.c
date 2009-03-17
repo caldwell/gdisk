@@ -121,6 +121,7 @@ static struct command *find_command(char *command)
 static int run_command(char *line)
 {
     int status = 0;
+    char **cmdv = NULL;
     char **argv = parse_command(line);
     int argc;
     for (argc=0; argv[argc]; argc++) {}
@@ -136,16 +137,46 @@ static int run_command(char *line)
     int args;
     for (args=0; c->arg[args].name; args++) {}
 
-    if (argc > args+1) {
-        printf("Too many arguments for command '%s'\n", argv[0]);
-        status = EINVAL;
-        goto done;
+    cmdv = xcalloc(1+args+1, sizeof(*argv));
+    cmdv[0] = xstrdup(argv[0]);
+    for (int i=1; i<argc; i++) {
+        if (argv[i][0] == '-') {
+            char *rest = argv[i];
+            char *name = strsep(&rest, "=");
+            while (*name == '-') name++;
+            for (int a=0; a<args; a++)
+                if (strcmp(c->arg[a].name, name) == 0) {
+                    char **arg = &cmdv[a+1];
+                    if (c->arg[a].type == C_Flag)
+                        *arg = xstrdup(argv[i]);
+                    else if (!rest  || !*rest)
+                        if (i+1 >= argc) {
+                            fprintf(stderr, "Missing parameter for argument \"%s\"\n", name);
+                            status = EINVAL;
+                            goto done;
+                        } else
+                            *arg = xstrdup(argv[++i]);
+                    else
+                        *arg = xstrdup(rest);
+                    goto found;
+                }
+            fprintf(stderr, "Command \"%s\" has no such argument \"%s\". Try 'help %s'\n", c->name, name, c->name);
+            status = EINVAL;
+            goto done;
+        } else {
+            for (int o=1; o<args+1; o++)
+                if (!cmdv[o] && c->arg[o-1].type != C_Flag) {
+                    cmdv[o] = xstrdup(argv[i]);
+                    goto found;
+                }
+            fprintf(stderr, "Too many arguments for command '%s'\n", argv[0]);
+            status = EINVAL;
+            goto done;
+        }
+      found:;
     }
 
-    argv = xrealloc(argv, (1+args+1) * sizeof(*argv));
-    memset(&argv[argc], 0, (1+args+1 - argc) * sizeof(*argv));
-
-    char **v = argv + 1; // start past command name.
+    char **v = cmdv + 1; // start past command name.
     for (int a=0; a<args; a++, v++) {
         if (*v) continue; // Don't prompt for args entered on command line.
         if (c->arg[a].type & C_Optional)
@@ -159,19 +190,25 @@ static int run_command(char *line)
         else if (C_Type(c->arg[a].type) == C_Partition_Type)
             #warning "BUG: partition type completion doesn't do spaces right"
             rl_completion_entry_function = (void*)partition_type_completion;
+        // rl_completer_quote_characters = "\"'";
+        // rl_basic_word_break_characters = "";
 
         *v = readline(prompt);
         if (!*v) goto done;
         free(prompt);
     }
 
-    status = c->handler(argv);
+    status = c->handler(cmdv);
 
   done:
     if (argv)
-        for (int a=0; a<1+args; a++)
+        for (int a=0; a<argc; a++)
             free(argv[a]);
     free(argv);
+    if (cmdv)
+        for (int a=0; a<1+args; a++)
+            free(cmdv[a]);
+    free(cmdv);
     return status;
 }
 
