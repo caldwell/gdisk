@@ -42,6 +42,7 @@ static void *xrealloc(void *old, size_t count);
 static char *xstrdup(char *s);
 static void *memdup(void *mem, size_t size);
 static size_t sncatprintf(char *buffer, size_t space, char *format, ...) __attribute__ ((format (printf, 3, 4)));
+static char *ascat(char *dest, char *src);
 static char *tr(char *in, char *from, char *to);
 static char *trdup(char *in, char *from, char *to);
 static char *ctr(char *in, char *from, char *to);
@@ -1187,6 +1188,14 @@ static size_t sncatprintf(char *buffer, size_t space, char *format, ...)
     int count = vsnprintf(buffer + length, space - length, format, ap);
     va_end(ap);
     return count;
+}
+
+// Like strcat, but reallocs to make room (so dest must come from malloc)
+static char *ascat(char *dest, char *src)
+{
+    dest = xrealloc(dest, strlen(dest) + strlen(src) + 1);
+    strcat(dest, src);
+    return dest;
 }
 
 static char *tr(char *in, char *from, char *to)
