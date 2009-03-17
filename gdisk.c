@@ -40,9 +40,9 @@ static void *xmalloc(size_t size);
 static void *xcalloc(size_t count, size_t size);
 static void *xrealloc(void *old, size_t count);
 static char *xstrdup(char *s);
-static void *memdup(void *mem, size_t size);
+static void *xmemdup(void *mem, size_t size);
 static size_t sncatprintf(char *buffer, size_t space, char *format, ...) __attribute__ ((format (printf, 3, 4)));
-static char *ascat(char *dest, char *src);
+static char *xstrcat(char *dest, char *src);
 static char *tr(char *in, char *from, char *to);
 static char *trdup(char *in, char *from, char *to);
 static char *ctr(char *in, char *from, char *to);
@@ -223,8 +223,8 @@ static int run_command(char *line, char **final_line)
         free(prompt);
 
         if (final_line) {
-            *final_line = ascat(*final_line, " ");
-            *final_line = ascat(*final_line, *v);
+            *final_line = xstrcat(*final_line, " ");
+            *final_line = xstrcat(*final_line, *v);
         }
     }
 
@@ -527,9 +527,9 @@ static struct partition_table dup_table(struct partition_table t)
 {
     struct partition_table dup;
     dup = t;
-    dup.header = memdup(t.header, t.dev->sector_size);
-    dup.alt_header = memdup(t.alt_header, t.dev->sector_size);
-    dup.partition = memdup(t.partition, partition_sectors(t) * t.dev->sector_size);
+    dup.header = xmemdup(t.header, t.dev->sector_size);
+    dup.alt_header = xmemdup(t.alt_header, t.dev->sector_size);
+    dup.partition = xmemdup(t.partition, partition_sectors(t) * t.dev->sector_size);
     return dup;
 }
 
@@ -857,7 +857,7 @@ struct write_image image_from_table(struct partition_table t)
     };
 
     image.vec[3] = (struct write_vec) {
-        .buffer = memdup(buffer, t.header->partition_entries * t.dev->sector_size),
+        .buffer = xmemdup(buffer, t.header->partition_entries * t.dev->sector_size),
         .block  = t.alt_header->partition_entry_lba,
         .blocks = partition_sectors(t),
         .name = xstrdup("alt_gpt_partitions"),
@@ -1180,7 +1180,7 @@ static char *xstrdup(char *s)
     if (!dup) err(errno, "Out of memory");
     return dup;
 }
-static void *memdup(void *mem, size_t size)
+static void *xmemdup(void *mem, size_t size)
 {
     void *dup = xmalloc(size);
     memcpy(dup, mem, size);
@@ -1198,7 +1198,7 @@ static size_t sncatprintf(char *buffer, size_t space, char *format, ...)
 }
 
 // Like strcat, but reallocs to make room (so dest must come from malloc)
-static char *ascat(char *dest, char *src)
+static char *xstrcat(char *dest, char *src)
 {
     dest = xrealloc(dest, strlen(dest) + strlen(src) + 1);
     strcat(dest, src);
