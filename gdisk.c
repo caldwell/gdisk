@@ -22,6 +22,7 @@
 #include "autolist.h"
 #include "csprintf.h"
 #include "human.h"
+#include "xmem.h"
 #include "gdisk.h"
 
 autolist_define(command);
@@ -36,13 +37,7 @@ static unsigned long partition_sectors(struct partition_table t);
 static void dump_dev(struct device *dev);
 static void dump_header(struct gpt_header *header);
 static void dump_partition(struct gpt_partition *p);
-static void *xmalloc(size_t size);
-static void *xcalloc(size_t count, size_t size);
-static void *xrealloc(void *old, size_t count);
-static char *xstrdup(char *s);
-static void *xmemdup(void *mem, size_t size);
 static size_t sncatprintf(char *buffer, size_t space, char *format, ...) __attribute__ ((format (printf, 3, 4)));
-static char *xstrcat(char *dest, char *src);
 static char *tr(char *in, char *from, char *to);
 static char *trdup(char *in, char *from, char *to);
 static char *ctr(char *in, char *from, char *to);
@@ -1156,36 +1151,6 @@ static int command_dump_mbr(char **arg)
 command_add("debug-dump-mbr", command_dump_mbr, "Dump MBR structure");
 
 // Some useful library routines. Should maybe go in another file at some point.
-static void *xmalloc(size_t size)
-{
-    void *mem = malloc(size);
-    if (!mem) err(errno, "Out of memory");
-    return mem;
-}
-static void *xcalloc(size_t count, size_t size)
-{
-    void *mem = calloc(count, size);
-    if (!mem) err(errno, "Out of memory");
-    return mem;
-}
-static void *xrealloc(void *old, size_t count)
-{
-    void *mem = realloc(old, count);
-    if (!mem) err(errno, "Out of memory");
-    return mem;
-}
-static char *xstrdup(char *s)
-{
-    char *dup = strdup(s);
-    if (!dup) err(errno, "Out of memory");
-    return dup;
-}
-static void *xmemdup(void *mem, size_t size)
-{
-    void *dup = xmalloc(size);
-    memcpy(dup, mem, size);
-    return dup;
-}
 
 static size_t sncatprintf(char *buffer, size_t space, char *format, ...)
 {
@@ -1195,14 +1160,6 @@ static size_t sncatprintf(char *buffer, size_t space, char *format, ...)
     int count = vsnprintf(buffer + length, space - length, format, ap);
     va_end(ap);
     return count;
-}
-
-// Like strcat, but reallocs to make room (so dest must come from malloc)
-static char *xstrcat(char *dest, char *src)
-{
-    dest = xrealloc(dest, strlen(dest) + strlen(src) + 1);
-    strcat(dest, src);
-    return dest;
 }
 
 static char *tr(char *in, char *from, char *to)
