@@ -103,7 +103,7 @@ static char **parse_command(char *line)
     while (word = next_word(&rest)) {
         if (!*word) continue; // compact multiple consecutive separators
         v = xrealloc(v, sizeof(char *) * (c+2));
-        v[c] = xstrdup(word);
+        v[c] = word;
         v[c+1] = NULL;
         c++;
     }
@@ -201,9 +201,6 @@ static int run_command(char *line)
     status = c->handler(cmdv);
 
   done:
-    if (argv)
-        for (int a=0; a<argc; a++)
-            free(argv[a]);
     free(argv);
     if (cmdv)
         for (int a=0; a<1+args; a++)
