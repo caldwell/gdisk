@@ -26,7 +26,7 @@
 
 autolist_define(command);
 
-static int run_command(char *line);
+static int run_command(char *line, char **final_line);
 static struct partition_table read_table(struct device *dev);
 static void free_table(struct partition_table t);
 static char *command_completion(const char *text, int state);
@@ -72,16 +72,17 @@ int main(int c, char **v)
     g_table_orig = read_table(dev);
     g_table = read_table(dev);
 
-    char *line;
+    char *line, *final_line;
     int status = 0;
     do {
         rl_completion_entry_function = (void*)command_completion; // rl_completion_entry_function is defined to return an int??
         line = readline("gdisk> ");
         if (!line)
             break;
-        add_history(line);
-        status = run_command(line);
+        status = run_command(line, &final_line);
+        add_history(final_line);
         free(line);
+        free(final_line);
     } while (status != ECANCELED); // Special case meaning Quit!
     printf("\nQuitting without saving changes.\n");
 
@@ -132,8 +133,9 @@ static struct command *find_command(char *command)
     return NULL;
 }
 
-static int run_command(char *line)
+static int run_command(char *line, char **final_line)
 {
+    if (final_line) *final_line = xstrdup(line);
     int status = 0;
     char **cmdv = NULL;
     char **argv = parse_command(line);
@@ -219,6 +221,11 @@ static int run_command(char *line)
         *v = readline(prompt);
         if (!*v) goto done;
         free(prompt);
+
+        if (final_line) {
+            *final_line = ascat(*final_line, " ");
+            *final_line = ascat(*final_line, *v);
+        }
     }
 
     status = c->handler(cmdv);
