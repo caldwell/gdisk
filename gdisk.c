@@ -305,7 +305,7 @@ static char *partition_type_completion(const char *text, int state)
 {
     for (int i=0, s=0; gpt_partition_type[i].name; i++) {
         char *_name = trdup(gpt_partition_type[i].name, " ", "_");
-        if (strncmp(text, _name, strlen(text)) == 0 &&
+        if (strncasecmp(text, _name, strlen(text)) == 0 &&
             s++ == state)
             return _name;
         free(_name);
