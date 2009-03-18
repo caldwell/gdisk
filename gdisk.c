@@ -463,7 +463,7 @@ static struct partition_table read_table(struct device *dev)
 
 #define header_error(format, ...) ({                        \
             fprintf(stderr, format, ##__VA_ARGS__);         \
-            fprintf(stderr, ". Assuming blank partiton\n"); \
+            fprintf(stderr, ". Assuming blank partition.\n");\
             free_table(t);                                  \
             blank_table(dev);                               \
         })
