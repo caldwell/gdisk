@@ -43,3 +43,20 @@ char *xstrcat(char *dest, char *src)
     strcat(dest, src);
     return dest;
 }
+
+#include <stdarg.h>
+#include <stdio.h>
+int vxsprintf(char **out, const char *format, va_list ap)
+{
+    int count = vasprintf(out, format, ap);
+    if (count == -1 || !*out) err(errno, "Out of memory");
+    return count;
+}
+int xsprintf(char **out, char *format, ...)
+{
+    va_list ap;
+    va_start(ap, format);
+    int count = vxsprintf(out, format, ap);
+    va_end(ap);
+    return count;
+}
