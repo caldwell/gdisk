@@ -410,6 +410,15 @@ static struct partition_table blank_table(struct device *dev)
     return t;
 }
 
+static int command_clear_table(char **arg)
+{
+    struct mbr mbr = g_table.mbr;
+    g_table = blank_table(g_table.dev);
+    g_table.mbr = mbr;
+    return 0;
+}
+command_add("clear-table", command_clear_table, "Clear out GPT partition table for a nice fresh start.");
+
 static struct mbr blank_mbr(struct device *dev)
 {
     struct mbr mbr = { .mbr_signature = MBR_SIGNATURE };
@@ -419,6 +428,13 @@ static struct mbr blank_mbr(struct device *dev)
     return mbr;
 }
 
+static int command_clear_mbr(char **arg)
+{
+    g_table.mbr = blank_mbr(g_table.dev);
+    create_mbr_alias_table(&g_table);
+    return 0;
+}
+command_add("clear-mbr", command_clear_mbr, "Clear out MBR partition table and start anew.");
 
 static struct partition_table gpt_table_from_mbr(struct mbr mbr, struct device *dev)
 {
