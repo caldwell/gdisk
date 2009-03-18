@@ -1,5 +1,5 @@
 //  Copyright (c) 2009 David Caldwell,  All Rights Reserved.
-
+#define _GNU_SOURCE
 #include <string.h>
 #include <errno.h>
 #include <err.h>
