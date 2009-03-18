@@ -9,7 +9,7 @@ struct partition_table {
     struct gpt_partition *partition;
     struct mbr mbr;
     struct options {
-        int mbr_sync;
+        bool mbr_sync;
     } options;
     int alias[lengthof(((struct mbr*)0)->partition)];
 };
