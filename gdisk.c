@@ -468,6 +468,12 @@ static struct partition_table read_table(struct device *dev)
             blank_table(dev);                               \
         })
 
+#define header_warning(format, ...) ({              \
+            fprintf(stderr, "Warning: ");           \
+            fprintf(stderr, format, ##__VA_ARGS__); \
+            fprintf(stderr, ".\n");                 \
+        })
+
     if (memcmp(t.header->signature, "EFI PART", sizeof(t.header->signature)) != 0)
         return header_error("Missing signature");
 
@@ -480,28 +486,34 @@ static struct partition_table read_table(struct device *dev)
 
     gpt_header_to_host(t.alt_header);
 
-    if (t.header->partition_entry_lba != 2)
-        return header_error("Partition table LBA is %"PRId64" and not 2", t.header->partition_entry_lba);
-
     if (t.header->header_size != sizeof(struct gpt_header))
         return header_error("Partition header is %d bytes long instead of %zd", t.header->header_size, sizeof(struct gpt_header));
 
     if (sizeof(struct gpt_partition) != t.header->partition_entry_size)
         return header_error("Size of partition entries are %d instead of %zd", t.header->partition_entry_size, sizeof(struct gpt_partition));
 
+    if (t.header->my_lba != 1)
+        header_warning("Header LBA is %"PRId64" and not 1", t.header->my_lba);
+
+    if (t.alt_header->my_lba != t.header->alternate_lba)
+        header_warning("Alternate header LBA is %"PRId64" and not %"PRId64"", t.alt_header->my_lba, t.header->alternate_lba);
+
+    if (t.header->alternate_lba != dev->sector_count-1)
+        header_warning("Alternate header LBA is %"PRId64" and not at the end of the disk (LBA: %"PRId64")", t.header->alternate_lba, dev->sector_count-1);
+
     t.partition = get_sectors(dev, 2, divide_round_up(t.header->partition_entry_size * t.header->partition_entries,dev->sector_size));
     gpt_partition_to_host(t.partition, t.header->partition_entries);
 
     if (!gpt_crc_valid(t.header, t.partition))
-        printf("header CRC not valid\n");
+        header_warning("Header CRC is not valid");
+
     if (!gpt_crc_valid(t.alt_header, t.partition))
-        printf("alt header CRC not valid\n");
+        header_warning("Alternate header CRC is not valid");
 
     t.mbr = read_mbr(dev);
 
     create_mbr_alias_table(&t);
 
-    #warning "TODO: Add sanity checking from EFI spec"
     #warning "TODO: Capture both sets of partition tables in case on has a bad crc."
 
     return t;
