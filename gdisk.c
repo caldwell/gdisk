@@ -32,8 +32,6 @@ static struct partition_table read_table(struct device *dev);
 static void free_table(struct partition_table t);
 static char *command_completion(const char *text, int state);
 static char *partition_type_completion(const char *text, int state);
-static struct partition_table dup_table(struct partition_table t);
-static unsigned long partition_sectors(struct partition_table t);
 static void dump_dev(struct device *dev);
 static void dump_header(struct gpt_header *header);
 static void dump_partition(struct gpt_partition *p);
@@ -315,6 +313,66 @@ static char *partition_type_completion(const char *text, int state)
     return NULL;
 }
 
+static void update_gpt_crc(struct gpt_header *h, struct gpt_partition *p)
+{
+    h->partition_crc32 = gpt_partition_crc32(h, p);
+    h->header_crc32 = gpt_header_crc32(h);
+}
+
+static void update_table_crc(struct partition_table *t)
+{
+    update_gpt_crc(t->header,     t->partition);
+    update_gpt_crc(t->alt_header, t->partition);
+}
+
+static bool gpt_crc_valid(struct gpt_header *h, struct gpt_partition *p)
+{
+    return h->partition_crc32 == gpt_partition_crc32(h, p) && h->header_crc32 == gpt_header_crc32(h);
+}
+
+static void utf16_from_ascii(uint16_t *utf16le, char *ascii, int n)
+{
+    if (!n) return;
+    while (--n && (*utf16le++ = *ascii++)) {}
+    *utf16le = '\0';
+}
+
+static bool partition_entry_is_representable_in_mbr(struct gpt_partition entry)
+{
+    // MBR only has 32 bits for the LBA. So if the partition is further up the disk than that then it can't be represented in the MBR.
+    return !guid_eq(gpt_partition_type_empty, entry.partition_type) &&
+           entry.first_lba < 0x100000000LL &&
+           entry.last_lba - entry.first_lba < 0x100000000LL;
+}
+
+static void create_mbr_alias_table(struct partition_table *t)
+{
+    t->options.mbr_sync = true;
+    for (int i=0; i<lengthof(t->alias); i++)
+        t->alias[i] = -1;
+    for (int mp=0; mp<lengthof(t->mbr.partition); mp++) {
+        if (!t->mbr.partition[mp].partition_type)
+            continue;
+        for (int gp=0; gp<t->header->partition_entries; gp++)
+            if (partition_entry_is_representable_in_mbr(t->partition[gp]) &&
+                (t->mbr.partition[mp].first_sector_lba == t->partition[gp].first_lba ||
+                 // first partition could be type EE which covers the GPT partition table and the optional EFI filesystem.
+                 // The EFI filesystem in the GPT doesn't cover the EFI partition table, so the starts might not line up.
+                 t->mbr.partition[mp].first_sector_lba == 1 && t->mbr.partition[mp].partition_type == 0xee) &&
+                t->mbr.partition[mp].first_sector_lba + t->mbr.partition[mp].sectors == t->partition[gp].last_lba + 1) {
+                t->alias[mp] = gp;
+                break;
+            }
+        if (t->alias[mp] == -1)
+            t->options.mbr_sync = false;
+    }
+}
+
+static unsigned long partition_sectors(struct partition_table t)
+{
+    return divide_round_up(t.header->partition_entry_size * t.header->partition_entries, t.dev->sector_size);
+}
+
 static struct partition_table blank_table(struct device *dev)
 {
     struct partition_table t = {};
@@ -359,29 +417,6 @@ static struct mbr blank_mbr(struct device *dev)
     return mbr;
 }
 
-static void update_gpt_crc(struct gpt_header *h, struct gpt_partition *p)
-{
-    h->partition_crc32 = gpt_partition_crc32(h, p);
-    h->header_crc32 = gpt_header_crc32(h);
-}
-
-static void update_table_crc(struct partition_table *t)
-{
-    update_gpt_crc(t->header,     t->partition);
-    update_gpt_crc(t->alt_header, t->partition);
-}
-
-static bool gpt_crc_valid(struct gpt_header *h, struct gpt_partition *p)
-{
-    return h->partition_crc32 == gpt_partition_crc32(h, p) && h->header_crc32 == gpt_header_crc32(h);
-}
-
-static void utf16_from_ascii(uint16_t *utf16le, char *ascii, int n)
-{
-    if (!n) return;
-    while (--n && (*utf16le++ = *ascii++)) {}
-    *utf16le = '\0';
-}
 
 static struct partition_table gpt_table_from_mbr(struct mbr mbr, struct device *dev)
 {
@@ -429,37 +464,6 @@ static int gpt_from_mbr(char **arg)
     return 0;
 }
 command_add("init-from-mbr", gpt_from_mbr, "Init a GPT from the MBR");
-
-static bool partition_entry_is_representable_in_mbr(struct gpt_partition entry)
-{
-    // MBR only has 32 bits for the LBA. So if the partition is further up the disk than that then it can't be represented in the MBR.
-    return !guid_eq(gpt_partition_type_empty, entry.partition_type) &&
-           entry.first_lba < 0x100000000LL &&
-           entry.last_lba - entry.first_lba < 0x100000000LL;
-}
-
-static void create_mbr_alias_table(struct partition_table *t)
-{
-    t->options.mbr_sync = true;
-    for (int i=0; i<lengthof(t->alias); i++)
-        t->alias[i] = -1;
-    for (int mp=0; mp<lengthof(t->mbr.partition); mp++) {
-        if (!t->mbr.partition[mp].partition_type)
-            continue;
-        for (int gp=0; gp<t->header->partition_entries; gp++)
-            if (partition_entry_is_representable_in_mbr(t->partition[gp]) &&
-                (t->mbr.partition[mp].first_sector_lba == t->partition[gp].first_lba ||
-                 // first partition could be type EE which covers the GPT partition table and the optional EFI filesystem.
-                 // The EFI filesystem in the GPT doesn't cover the EFI partition table, so the starts might not line up.
-                 t->mbr.partition[mp].first_sector_lba == 1 && t->mbr.partition[mp].partition_type == 0xee) &&
-                t->mbr.partition[mp].first_sector_lba + t->mbr.partition[mp].sectors == t->partition[gp].last_lba + 1) {
-                t->alias[mp] = gp;
-                break;
-            }
-        if (t->alias[mp] == -1)
-            t->options.mbr_sync = false;
-    }
-}
 
 static struct partition_table read_gpt_table(struct device *dev)
 {
@@ -821,11 +825,6 @@ command_add("edit-attributes", command_edit_attributes, "Change parts of a parti
             command_arg("index",      C_Number, "The index number of the partition. The first partitiion is partition zero"),
             command_arg("command",    C_String, "\"set\" or \"clear\" -- what you want to do to the bits"),
             command_arg("attributes", C_String, "The bits you want to set or clear as a number (or \"system\" for \"System Partition\" attribute)"));
-
-static unsigned long partition_sectors(struct partition_table t)
-{
-    return divide_round_up(t.header->partition_entry_size * t.header->partition_entries, t.dev->sector_size);
-}
 
 
 struct write_vec {
