@@ -67,6 +67,7 @@ int main(int c, char **v)
     int status = 0;
     do {
         rl_completion_entry_function = (void*)command_completion; // rl_completion_entry_function is defined to return an int??
+        rl_completion_append_character = ' ';
         line = readline("gdisk> ");
         if (!line)
             break;
@@ -208,6 +209,7 @@ static int run_command(char *line, char **final_line)
             rl_completion_entry_function = (void*)partition_type_completion;
         // rl_completer_quote_characters = "\"'";
         // rl_basic_word_break_characters = "";
+        rl_completion_append_character = '\0';
 
         *v = readline(prompt);
         if (!*v) goto done;
