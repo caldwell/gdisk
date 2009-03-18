@@ -347,7 +347,7 @@ static bool partition_entry_is_representable_in_mbr(struct gpt_partition entry)
 
 static void create_mbr_alias_table(struct partition_table *t)
 {
-    t->options.mbr_sync = true;
+    int synced = -1;
     for (int i=0; i<lengthof(t->alias); i++)
         t->alias[i] = -1;
     for (int mp=0; mp<lengthof(t->mbr.partition); mp++) {
@@ -361,11 +361,13 @@ static void create_mbr_alias_table(struct partition_table *t)
                  t->mbr.partition[mp].first_sector_lba == 1 && t->mbr.partition[mp].partition_type == 0xee) &&
                 t->mbr.partition[mp].first_sector_lba + t->mbr.partition[mp].sectors == t->partition[gp].last_lba + 1) {
                 t->alias[mp] = gp;
+                if (synced < 0) synced = 1;
                 break;
             }
         if (t->alias[mp] == -1)
-            t->options.mbr_sync = false;
+            synced = 0;
     }
+    t->options.mbr_sync = synced == 1;
 }
 
 static unsigned long partition_sectors(struct partition_table t)
