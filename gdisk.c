@@ -481,7 +481,7 @@ static int gpt_from_mbr(char **arg)
     g_table = gpt_table_from_mbr(mbr, dev);
     return 0;
 }
-command_add("init-from-mbr", gpt_from_mbr, "Init a GPT from the MBR");
+command_add("init-gpt-from-mbr", gpt_from_mbr, "(Re)create GPT partition table using data from the MBR partition table");
 
 static struct partition_table read_gpt_table(struct device *dev)
 {
@@ -776,7 +776,7 @@ static int command_sync_mbr(char **arg)
     g_table.options.mbr_sync = true;
     return 0;
 }
-command_add("sync-mbr", command_sync_mbr, "Create a new MBR partition table with data from the GPT partition table",
+command_add("init-mbr-from-gpt", command_sync_mbr, "(Re)create MBR partition table using data from the GPT partition table",
             command_arg("force",     C_Flag, "Force a re-sync if the MBR already looks synced"));
 
 
