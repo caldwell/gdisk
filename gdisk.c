@@ -51,7 +51,6 @@ static void usage(char *me, int exit_code)
     exit(exit_code);
 }
 
-struct partition_table g_table_orig;
 struct partition_table g_table;
 
 int main(int c, char **v)
@@ -64,7 +63,6 @@ int main(int c, char **v)
     if (!dev)
         err(0, "Couldn't find device %s", v[1]);
 
-    g_table_orig = read_table(dev);
     g_table = read_table(dev);
 
     char *line, *final_line;
@@ -418,8 +416,9 @@ static struct partition_table gpt_table_from_mbr(struct device *dev)
 }
 static int gpt_from_mbr(char **arg)
 {
+    struct device *dev = g_table.dev;
     free_table(g_table);
-    g_table = gpt_table_from_mbr(g_table_orig.dev);
+    g_table = gpt_table_from_mbr(dev);
     return 0;
 }
 command_add("init-from-mbr", gpt_from_mbr, "Init a GPT from the MBR");
