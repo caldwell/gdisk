@@ -347,10 +347,16 @@ static struct partition_table blank_table(struct device *dev)
     for (int i=0; i<lengthof(t.alias); i++)
         t.alias[i] = -1;
 
-    // Even a blank MBR should preserve the boot code.
-    struct mbr mbr = read_mbr(dev);
-    memcpy(t.mbr.code, mbr.code, sizeof(mbr.code));
     return t;
+}
+
+static struct mbr blank_mbr(struct device *dev)
+{
+    struct mbr mbr = { .mbr_signature = MBR_SIGNATURE };
+    // Even a blank MBR should preserve the boot code.
+    struct mbr code = read_mbr(dev);
+    memcpy(mbr.code, code.code, sizeof(mbr.code));
+    return mbr;
 }
 
 static void update_gpt_crc(struct gpt_header *h, struct gpt_partition *p)
@@ -377,10 +383,10 @@ static void utf16_from_ascii(uint16_t *utf16le, char *ascii, int n)
     *utf16le = '\0';
 }
 
-static struct partition_table gpt_table_from_mbr(struct device *dev)
+static struct partition_table gpt_table_from_mbr(struct mbr mbr, struct device *dev)
 {
     struct partition_table t = blank_table(dev);
-    t.mbr = read_mbr(dev);
+    t.mbr = mbr;
     for (int mp=0,gp=0; mp<lengthof(t.mbr.partition); mp++) {
         if (t.mbr.partition[mp].partition_type) {
             if (t.mbr.partition[mp].partition_type == 0xee)
@@ -417,8 +423,9 @@ static struct partition_table gpt_table_from_mbr(struct device *dev)
 static int gpt_from_mbr(char **arg)
 {
     struct device *dev = g_table.dev;
+    struct mbr mbr = g_table.mbr;
     free_table(g_table);
-    g_table = gpt_table_from_mbr(dev);
+    g_table = gpt_table_from_mbr(mbr, dev);
     return 0;
 }
 command_add("init-from-mbr", gpt_from_mbr, "Init a GPT from the MBR");
@@ -454,7 +461,7 @@ static void create_mbr_alias_table(struct partition_table *t)
     }
 }
 
-static struct partition_table read_table(struct device *dev)
+static struct partition_table read_gpt_table(struct device *dev)
 {
     struct partition_table t = {};
     t.dev = dev;
@@ -510,11 +517,18 @@ static struct partition_table read_table(struct device *dev)
     if (!gpt_crc_valid(t.alt_header, t.partition))
         header_warning("Alternate header CRC is not valid");
 
+    #warning "TODO: Capture both sets of partition tables in case on has a bad crc."
+
+    return t;
+}
+
+static struct partition_table read_table(struct device *dev)
+{
+    struct partition_table t = read_gpt_table(dev);
+
     t.mbr = read_mbr(dev);
 
     create_mbr_alias_table(&t);
-
-    #warning "TODO: Capture both sets of partition tables in case on has a bad crc."
 
     return t;
 }
