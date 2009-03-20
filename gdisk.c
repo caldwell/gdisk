@@ -1019,15 +1019,14 @@ static int write_table(struct partition_table t, bool force)
     free_image(backup);
 
     int err = 0;
-    #warning "TODO: Figure out how to test this and then uncomment it!"
-    // for (int i=0; i<image.count; i++)
-    //     if (!device_write(t.dev, image.vec[i].buffer, image.vec[i].block, image.vec[i].blocks)) {
-    //         err = errno;
-    //         warn("Error while writing %s to %s", image.vec[i].name, t.dev->name);
-    //         if (i > 0)
-    //             fprintf(stderr, "The partition table on your disk is now most likely corrupt.\n");
-    //         break;
-    //     }
+    for (int i=0; i<image.count; i++)
+        if (!device_write(t.dev, image.vec[i].buffer, image.vec[i].blocks, image.vec[i].block)) {
+            err = errno;
+            warn("Error while writing %s to %s", image.vec[i].name, t.dev->name);
+            if (i > 0)
+                fprintf(stderr, "The partition table on your disk is now most likely corrupt.\n");
+            break;
+        }
     free_image(image);
     return err;
 }
