@@ -88,7 +88,7 @@ struct mbr read_mbr(struct device *dev)
 bool write_mbr(struct device *dev, struct mbr mbr)
 {
     void *sector = sector_from_mbr(dev, mbr);
-    return device_write(dev, sector, 1, 0);
+    return device_write(dev, sector, 0, 1);
 }
 
 #include <stdio.h>

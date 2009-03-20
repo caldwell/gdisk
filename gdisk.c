@@ -1020,7 +1020,7 @@ static int write_table(struct partition_table t, bool force)
 
     int err = 0;
     for (int i=0; i<image.count; i++)
-        if (!device_write(t.dev, image.vec[i].buffer, image.vec[i].blocks, image.vec[i].block)) {
+        if (!device_write(t.dev, image.vec[i].buffer, image.vec[i].block, image.vec[i].blocks)) {
             err = errno;
             warn("Error while writing %s to %s", image.vec[i].name, t.dev->name);
             if (i > 0)
