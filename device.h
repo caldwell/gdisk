@@ -8,6 +8,7 @@ struct device {
     char *name;
     unsigned long sector_size;
     unsigned long long sector_count;
+    int fd;
 };
 
 void *alloc_sectors(struct device *dev, unsigned long sectors);
@@ -19,6 +20,9 @@ void close_device(struct device *dev);
 bool device_read(struct device *dev, void *buffer, unsigned int sectors, unsigned long long sector);
 bool device_write(struct device *dev, void *buffer, unsigned int sectors, unsigned long long sector);
 char *device_help();
+
+// Backend use only:
+struct device *open_disk_device(char *name);
 
 #endif /* __DEVICE_H__ */
 

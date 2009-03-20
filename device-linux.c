@@ -11,31 +11,23 @@
 #include <err.h>
 #include "device.h"
 
-struct device_linux {
-    struct device dev;
-    int fd;
-};
 static unsigned int sector_size(int fd)
 {
     uint32_t size;
     if (ioctl(fd, BLKSSZGET, &size) == -1)
-        return 512;
+        return 0;
     return size;
 }
 
 static unsigned long long byte_count(int fd)
 {
     uint64_t count;
-    if (ioctl(fd, BLKGETSIZE64, &count) == -1) {
-        struct stat st;
-        if (fstat(fd, &st) == -1)
-            err(errno, "can't find disk/file size");
-        return st.st_size;
-    }
+    if (ioctl(fd, BLKGETSIZE64, &count) == -1)
+        return 0;
     return count;
 }
 
-struct device *open_device(char *name)
+struct device *open_disk_device(char *name)
 {
     int fd = open(name, O_RDWR | O_EXCL);
     if (fd < 0) {
@@ -44,39 +36,18 @@ struct device *open_device(char *name)
             fd = open(name, O_RDWR);
     }
     if (fd < 0)
-        err(errno, "Error opening device %s", name);
+        return NULL;
 
-    struct device_linux *dev = malloc(sizeof(*dev));
-    if (!dev) {
-        close(fd);
-        err(ENOMEM, "No memory for device structure");
-    }
-    dev->fd = fd;
-    dev->dev.name = strdup(name);
-    dev->dev.sector_size = sector_size(fd);
-    dev->dev.sector_count = byte_count(fd)/dev->dev.sector_size;
-    return &dev->dev;
-}
+    unsigned int ss = sector_size(fd);
+    unsigned long long bc = byte_count(fd);
 
-void close_device(struct device *dev)
-{
-    struct device_linux *dev_linux = (struct device_linux *)dev;
-    close(dev_linux->fd);
-    free(dev->name);
-    free(dev_linux);
-}
-
-#include <stdio.h>
-bool device_read(struct device *dev, void *buffer, unsigned int sectors, unsigned long long sector)
-{
-    struct device_linux *dev_linux = (struct device_linux *)dev;
-    return pread(dev_linux->fd, buffer, dev->sector_size * sectors, dev->sector_size * sector) == dev->sector_size * sectors;
-}
-
-bool device_write(struct device *dev, void *buffer, unsigned int sectors, unsigned long long sector)
-{
-    struct device_linux *dev_linux = (struct device_linux *)dev;
-    return pwrite(dev_linux->fd, buffer, dev->sector_size * sectors, dev->sector_size * sector) == dev->sector_size * sectors;
+    struct device dev = {
+        .fd = fd,
+        .name = xstrdup(name),
+        .sector_size = ss,
+        .sector_count = ss ? bc/ss : 0,
+    };
+    return xmemdup(&dev, sizeof(dev));
 }
 
 char *device_help()
