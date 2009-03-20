@@ -60,7 +60,8 @@ int main(int c, char **v)
     struct device *dev = open_device(device_name);
     if (!dev)
         err(0, "Couldn't find device %s", v[1]);
-
+    if (dev->sector_size < 512)
+        err(0, "Disk has a sector size of %d which is not big enough to support an MBR which I don't support yet.", dev->sector_size);
     g_table = read_table(dev);
 
     char *line, *final_line;
