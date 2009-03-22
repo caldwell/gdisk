@@ -61,7 +61,7 @@ int main(int c, char **v)
     if (!dev)
         err(0, "Couldn't find device %s", v[1]);
     if (dev->sector_size < 512)
-        err(0, "Disk has a sector size of %d which is not big enough to support an MBR which I don't support yet.", dev->sector_size);
+        err(0, "Disk has a sector size of %lu which is not big enough to support an MBR which I don't support yet.", dev->sector_size);
     g_table = read_table(dev);
 
     char *line, *final_line;
@@ -531,7 +531,7 @@ static struct partition_table read_gpt_table(struct device *dev)
         header_warning("Alternate header LBA is %"PRId64" and not %"PRId64"", t.alt_header->my_lba, t.header->alternate_lba);
 
     if (t.header->alternate_lba != dev->sector_count-1)
-        header_warning("Alternate header LBA is %"PRId64" and not at the end of the disk (LBA: %"PRId64")", t.header->alternate_lba, dev->sector_count-1);
+        header_warning("Alternate header LBA is %"PRId64" and not at the end of the disk (LBA: %llu)", t.header->alternate_lba, dev->sector_count-1);
 
     t.partition = get_sectors(dev, 2, divide_round_up(t.header->partition_entry_size * t.header->partition_entries,dev->sector_size));
     gpt_partition_to_host(t.partition, t.header->partition_entries);
