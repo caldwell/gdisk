@@ -1,5 +1,4 @@
 //  Copyright (c) 2008 David Caldwell and Jim Radford,  All Rights Reserved.
-#define _GNU_SOURCE
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdint.h>
