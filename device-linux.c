@@ -8,6 +8,7 @@
 #include <linux/fs.h>
 #include <sys/ioctl.h>
 #include <err.h>
+#include "xmem.h"
 #include "device.h"
 
 static unsigned int sector_size(int fd)
