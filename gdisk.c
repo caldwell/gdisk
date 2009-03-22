@@ -32,6 +32,7 @@ static struct partition_table read_table(struct device *dev);
 static void free_table(struct partition_table t);
 static char *command_completion(const char *text, int state);
 static char *partition_type_completion(const char *text, int state);
+static char *partition_size_completion(const char *text, int state);
 static void dump_dev(struct device *dev);
 static void dump_header(struct gpt_header *header);
 static void dump_partition(struct gpt_partition *p);
@@ -208,6 +209,8 @@ static int run_command(char *line, char **final_line)
         else if (C_Type(c->arg[a].type) == C_Partition_Type)
             #warning "BUG: partition type completion doesn't do spaces right"
             rl_completion_entry_function = (void*)partition_type_completion;
+        else if (C_Type(c->arg[a].type) == C_FreeSpace)
+            rl_completion_entry_function = (void*)partition_size_completion;
         // rl_completer_quote_characters = "\"'";
         // rl_basic_word_break_characters = "";
         rl_completion_append_character = '\0';
@@ -302,6 +305,25 @@ static char *command_completion(const char *text, int state)
             i++ == state)
             return xstrdup(c->name);
     return NULL;
+}
+
+static uint64_t *find_free_spaces(struct partition_table unsorted, int *spaces);
+
+static char *partition_size_completion(const char *text, int state)
+{
+    int spaces;
+    uint64_t *space = find_free_spaces(g_table, &spaces);
+    char *size = NULL;
+    for (int i=0, s=0; i<spaces; i++) {
+        char *_size = NULL; asprintf(&_size, "%"PRId64, space[i]);
+        if (strncasecmp(text, _size, strlen(text)) == 0 && s++ == state) {
+            size = _size;
+            break;
+        }
+        free(_size);
+    }
+    free(space);
+    return size;
 }
 
 static char *partition_type_completion(const char *text, int state)
@@ -610,29 +632,41 @@ static struct gpt_partition *find_unused_partition(struct partition_table t)
     return NULL;
 }
 
-static uint64_t find_free_space(struct partition_table unsorted, uint64_t blocks)
+static uint64_t *find_free_spaces(struct partition_table unsorted, int *spaces)
 {
     // To make this sane we sort the partition table first.
     struct partition_table t = dup_table(unsorted);
     compact_and_sort(&t);
 
     uint64_t free_start = t.header->first_usable_lba;
+    uint64_t *space = malloc(sizeof(*space)*(t.header->partition_entries+1));
+    *spaces = 0;
     for (int p=0; p<t.header->partition_entries; p++) {
         if (guid_eq(gpt_partition_type_empty, t.partition[p].partition_type))
             break;
-        if (t.partition[p].first_lba - free_start >= blocks)
-            goto done;
+        if (t.partition[p].first_lba - free_start > 0)
+            space[(*spaces)++] = (t.partition[p].first_lba - free_start) * t.dev->sector_size;
         free_start = t.partition[p].last_lba + 1;
     }
     // Check for it fitting in the end (probably the most common case)
-    if (t.header->last_usable_lba+1 - free_start >= blocks)
-        goto done;
+    if (t.header->last_usable_lba+1 - free_start > 0)
+        space[(*spaces)++] = (t.header->last_usable_lba+1 - free_start) * t.dev->sector_size;
 
-    free_start = -1LL;    // If we got here the was no room.
-
-  done:
     free_table(t);
-    return free_start;
+    return space;
+}
+
+static uint64_t find_free_space(struct partition_table unsorted, uint64_t blocks)
+{
+    int nspaces;
+    uint64_t *spaces = find_free_spaces(unsorted, &nspaces), space = -1LL;
+    for (int i=0; i<nspaces; i++)
+        if (spaces[i] >= blocks) {
+            space = spaces[i];
+            break;
+        }
+    free(spaces);
+    return space;
 }
 
 static GUID type_guid_from_string(char *s)
@@ -712,7 +746,7 @@ static int command_create_partition(char **arg)
 
 command_add("new", command_create_partition, "Create a new partition entry in the table",
             command_arg("type",      C_Partition_Type,    "Type of new partition"),
-            command_arg("size",      C_Number,            "Size of the new partition"),
+            command_arg("size",      C_FreeSpace,         "Size of the new partition"),
             command_arg("label",     C_String|C_Optional, "The name of the new partition"),
             command_arg("first_lba", C_String|C_Optional, "The first block of the new partition"),
             command_arg("last_lba",  C_String|C_Optional, "The last block of the new partition (this overrides the size argument)"),
