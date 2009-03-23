@@ -729,7 +729,7 @@ static int command_create_partition(char **arg)
         fprintf(stderr, "Couldn't find %"PRId64" blocks (%"PRId64", %s) of free space.\n", blocks, size, human_string(size));
         return ENOSPC;
     }
-    part.last_lba = arg[5] ? strtoull(arg[5], NULL, 0) : part.first_lba + blocks;
+    part.last_lba = arg[5] ? strtoull(arg[5], NULL, 0) : part.first_lba + blocks - 1;
     part.attributes = 0 | (arg[6] ? PA_SYSTEM_PARTITION : 0);
     utf16_from_ascii(part.name, arg[3] ? arg[3] : "", lengthof(part.name));
 
