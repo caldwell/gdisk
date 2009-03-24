@@ -23,6 +23,7 @@
 #include "csprintf.h"
 #include "human.h"
 #include "xmem.h"
+#include "dalloc.h"
 #include "gdisk.h"
 
 autolist_define(command);
@@ -109,14 +110,14 @@ char *next_word(char **line)
 
 static char **parse_command(char *line)
 {
-    char **v = xcalloc(1, sizeof(char*));
+    char **v = dcalloc(1, sizeof(char*));
     int c = 0;
 
     char *rest = line;
     char *word;
     while (word = next_word(&rest)) {
         if (!*word) continue; // compact multiple consecutive separators
-        v = xrealloc(v, sizeof(char *) * (c+2));
+        v = drealloc(v, sizeof(char *) * (c+2));
         v[c] = word;
         v[c+1] = NULL;
         c++;
@@ -135,6 +136,7 @@ static struct command *find_command(char *command)
 static int run_command(char *line, char **final_line)
 {
     if (final_line) *final_line = xstrdup(line);
+    dalloc_start();
     int status = 0;
     char **cmdv = NULL;
     char **argv = parse_command(line);
@@ -161,8 +163,8 @@ static int run_command(char *line, char **final_line)
     int args;
     for (args=0; c->arg[args].name; args++) {}
 
-    cmdv = xcalloc(1+args+1, sizeof(*argv));
-    cmdv[0] = xstrdup(argv[0]);
+    cmdv = dcalloc(1+args+1, sizeof(*argv));
+    cmdv[0] = argv[0];
     for (int i=1; i<argc; i++) {
         if (argv[i][0] == '-') {
             char *rest = argv[i];
@@ -172,16 +174,16 @@ static int run_command(char *line, char **final_line)
                 if (strcmp(c->arg[a].name, name) == 0) {
                     char **arg = &cmdv[a+1];
                     if (c->arg[a].type == C_Flag)
-                        *arg = xstrdup(argv[i]);
+                        *arg = argv[i];
                     else if (!rest  || !*rest)
                         if (i+1 >= argc) {
                             fprintf(stderr, "Missing parameter for argument \"%s\"\n", name);
                             status = EINVAL;
                             goto done;
                         } else
-                            *arg = xstrdup(argv[++i]);
+                            *arg = argv[++i];
                     else
-                        *arg = xstrdup(rest);
+                        *arg = rest;
                     goto found;
                 }
             fprintf(stderr, "Command \"%s\" has no such argument \"%s\". Try 'help %s'\n", c->name, name, c->name);
@@ -190,7 +192,7 @@ static int run_command(char *line, char **final_line)
         } else {
             for (int o=1; o<args+1; o++)
                 if (!cmdv[o] && c->arg[o-1].type != C_Flag) {
-                    cmdv[o] = xstrdup(argv[i]);
+                    cmdv[o] = argv[i];
                     goto found;
                 }
             fprintf(stderr, "Too many arguments for command '%s'\n", argv[0]);
@@ -205,8 +207,7 @@ static int run_command(char *line, char **final_line)
         if (*v) continue; // Don't prompt for args entered on command line.
         if (c->arg[a].type & C_Optional)
             continue;
-        char *prompt = NULL;
-        asprintf(&prompt, "%s: Enter %s: ", c->name, c->arg[a].help);
+        char *prompt = dsprintf("%s: Enter %s: ", c->name, c->arg[a].help);
         if (!prompt) err(ENOMEM, "No memory for argument prompt");
 
         if (C_Type(c->arg[a].type) == C_File)
@@ -220,9 +221,8 @@ static int run_command(char *line, char **final_line)
         // rl_basic_word_break_characters = "";
         rl_completion_append_character = '\0';
 
-        *v = readline(prompt);
+        *v = dalloc_remember(readline(prompt));
         if (!*v) goto done;
-        free(prompt);
 
         if (final_line) {
             *final_line = xstrcat(*final_line, " ");
@@ -233,17 +233,13 @@ static int run_command(char *line, char **final_line)
     status = c->handler(cmdv);
 
   done:
-    free(argv);
-    if (cmdv)
-        for (int a=0; a<1+args; a++)
-            free(cmdv[a]);
-    free(cmdv);
+    dalloc_free();
     return status;
 }
 
 static char *arg_name(struct command_arg_ *arg)
 {
-    return csprintf("%s%s%s",
+    return dsprintf("%s%s%s",
                     arg->type == C_Flag ? "--" : "<",
                     arg->name,
                     arg->type == C_Flag ? ""   : ">");
