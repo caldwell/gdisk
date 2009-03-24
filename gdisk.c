@@ -46,6 +46,7 @@ static size_t sncatprintf(char *buffer, size_t space, char *format, ...) __attri
 static char *tr(char *in, char *from, char *to);
 static char *trdup(char *in, char *from, char *to);
 static char *ctr(char *in, char *from, char *to);
+static char *trim(char *s);
 
 static void usage(char *me, int exit_code)
 {
@@ -223,6 +224,7 @@ static int run_command(char *line, char **final_line)
 
         *v = dalloc_remember(readline(prompt));
         if (!*v) goto done;
+        *v = trim(*v);
 
         if (final_line) {
             *final_line = xstrcat(*final_line, " ");
@@ -1259,4 +1261,13 @@ static char *trdup(char *in, char *from, char *to)
 static char *ctr(char *in, char *from, char *to)
 {
     return tr(csprintf("%s", in), from, to);
+}
+
+static char *trim(char *s)
+{
+    while (isspace(*s)) s++;
+    char *e = s+strlen(s) - 1;
+    while (e >= s && isspace(*e))
+        *e-- = '\0';
+    return s;
 }
