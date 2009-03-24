@@ -1081,8 +1081,37 @@ int command_write(char **arg)
 command_add("write", command_write, "Write the partition table back to the disk",
             command_arg("force", C_Flag, "Force table to be written even if backup cannot be saved"));
 
+static char *_p_first_lba(struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !p ? "Start LBA" : dsprintf("%14"PRId64"", p->first_lba); }
+static char *_p_last_lba (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !p ? "End LBA"   : dsprintf("%14"PRId64"", p->last_lba); }
+static char *_p_size     (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !p ? "Size" : dsprintf("%14"PRId64" (%9s)", (p->last_lba - p->first_lba + 1) * dev->sector_size,
+                                                                                                                       human_string((p->last_lba - p->first_lba + 1) * dev->sector_size)); }
+static char *_p_guid     (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !p ? "-GUID" : guid_str(p->partition_guid); }
+static char *_p_flags    (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !p ? "-Flags": dsprintf("implement_me"); }
+static char *_p_boot     (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !p ? "-B" : !m ? "" : dsprintf("%s", m->status & MBR_STATUS_BOOTABLE ? "*" : ""); }
+static char *_p_mbr_type (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !p ? "-MBR" : !m ? "" : dsprintf("%02x", m->partition_type); }
+static char *_p_gpt_type (struct gpt_partition *p, struct mbr_partition *m, struct device *dev)
+{
+    if (!p) return "-GPT Type";
+    char *string = NULL;
+    for (int t=0; gpt_partition_type[t].name; t++)
+        if (guid_eq(gpt_partition_type[t].guid, p->partition_type))
+            string = xstrcat(string, dsprintf("%s%s", string ? " or " : "", gpt_partition_type[t].name));
+    if (!string)
+        return guid_str(p->partition_type);
+    return dalloc_remember(string);
+}
+static char *_p_gpt_label(struct gpt_partition *p, struct mbr_partition *m, struct device *dev)
+{
+    if (!p) return "-Label";
+    wchar_t name[36];
+    for (int i=0; i<lengthof(name); i++)
+        name[i] = p->name[i];
+    return dsprintf("%.36ls", name);
+}
+
 static int command_print(char **arg)
 {
+    dalloc_start();
     printf("%s:\n", g_table.dev->name);
     printf("  Disk GUID: %s\n", guid_str(g_table.header->disk_guid));
     printf("  %lld %ld byte sectors for %lld total bytes (%s capacity)\n",
@@ -1090,42 +1119,57 @@ static int command_print(char **arg)
            g_table.dev->sector_count * g_table.dev->sector_size,
            human_string(g_table.dev->sector_count * g_table.dev->sector_size));
     printf("  MBR partition table is %s synced to the GPT table\n", g_table.options.mbr_sync ? "currently" : "not");
-    printf("\n    %3s) %14s %14s %26s %s\n", "###", "Start LBA", "End LBA", "Size", "GUID");
-    printf("    %.98s\n", "----------------------------------------------------------------------------------------------------------------");
-    for (int i=0; i<g_table.header->partition_entries; i++) {
-        if (guid_eq(gpt_partition_type_empty, g_table.partition[i].partition_type))
+    printf("\n");
+
+    typedef char *(*printer)(struct gpt_partition *p, struct mbr_partition *m, struct device *dev);
+    printer standard[] = { _p_size, _p_flags, _p_boot, _p_mbr_type, _p_gpt_type, _p_gpt_label };
+    printer verbose [] = { _p_first_lba, _p_last_lba, _p_size, _p_guid, _p_flags, _p_boot, _p_mbr_type, _p_gpt_type, _p_gpt_label };
+    printer *set = arg[1] ? verbose : standard;
+    int cols = arg[1] ? lengthof(verbose) : lengthof(standard);
+
+    struct {
+        int width;
+        char *data[g_table.header->partition_entries];
+    } column[cols];
+    memset(column, 0, sizeof(column));
+
+    for (int p=0; p<g_table.header->partition_entries; p++) {
+        if (guid_eq(gpt_partition_type_empty, g_table.partition[p].partition_type))
             continue;
-        printf("    %3d) %14"PRId64" %14"PRId64" %14"PRId64" (%9s) %s\n", i,
-               g_table.partition[i].first_lba, g_table.partition[i].last_lba,
-               (g_table.partition[i].last_lba - g_table.partition[i].first_lba) * g_table.dev->sector_size,
-               human_string((g_table.partition[i].last_lba - g_table.partition[i].first_lba) * g_table.dev->sector_size),
-               guid_str(g_table.partition[i].partition_guid));
+        for (int c=0; c<cols; c++) {
+            int m = get_mbr_alias(g_table, p);
+            column[c].data[p] = set[c](&g_table.partition[p],
+                                       g_table.options.mbr_sync && m != -1 ? &g_table.mbr.partition[m] : NULL,
+                                       g_table.dev);
+            if (!column[c].width) column[c].width = strlen(set[c](NULL,NULL,NULL));
+            column[c].width = MAX(column[c].width, strlen(column[c].data[p]));
+        }
     }
-    printf("\n    %3s) %-20s %s %-3s %-26s\n", "###", "Flags", "B", "MBR", "GPT Type");
-    printf("    %.98s\n", "----------------------------------------------------------------------------------------------------------------");
-    for (int i=0; i<g_table.header->partition_entries; i++) {
-        if (guid_eq(gpt_partition_type_empty, g_table.partition[i].partition_type))
-            continue;
-        printf("    %3d) %-20s ", i, "none");
-        int m = get_mbr_alias(g_table, i);
-        if (g_table.options.mbr_sync && m != -1) {
-            printf("%1s %02x  ", g_table.mbr.partition[m].status & MBR_STATUS_BOOTABLE ? "*" : "",
-                   g_table.mbr.partition[m].partition_type);
-        } else
-            printf("%1s %3s ","","");
-        int found=0;
-        for (int t=0; gpt_partition_type[t].name; t++)
-            if (guid_eq(gpt_partition_type[t].guid, g_table.partition[i].partition_type)) {
-                printf("%s%s", found ? " or " : "", gpt_partition_type[t].name);
-                found = 1;
-            }
-        if (!found)
-            printf("%s", guid_str(g_table.partition[i].partition_type));
+
+#define title(x) ({ char *title = set[x](NULL,NULL,NULL); *title == '-' ? title + 1 : title; })
+#define left(x) ({ char *title = set[x](NULL,NULL,NULL); *title == '-'; })
+#define format(x) ( left(x) ? "%-*s  " : "%*s  " )
+
+    printf("  ###  ");
+    for (int c=0; c<cols; c++)
+        printf(format(c), column[c].width, title(c));
+    printf("\n");
+    printf("  -----");
+    for (int c=0; c<cols; c++)
+        printf("%.*s--", column[c].width, "----------------------------------------------------------------------------------------------------------------");
+    printf("\n");
+    for (int p=0; p<g_table.header->partition_entries; p++) {
+        if (!column[0].data[p]) continue;
+        printf("  %3d) ", p);
+        for (int c=0; c<cols; c++)
+            printf(format(c), column[c].width, column[c].data[p]);
         printf("\n");
     }
+    dalloc_free();
     return 0;
 }
-command_add("print", command_print, "Print the partition table.");
+command_add("print", command_print, "Print the partition table.",
+            command_arg("verbose", C_Flag, "Print more details"));
 
 static int command_print_mbr(char **arg)
 {
