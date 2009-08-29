@@ -611,8 +611,10 @@ static struct partition_table read_gpt_table(struct device *dev)
             t.partition = get_sectors(dev, t.header->partition_entry_lba, divide_round_up(t.header->partition_entry_size * t.header->partition_entries,dev->sector_size));
             gpt_partition_to_host(t.partition, t.header->partition_entries);
 
-            if (!gpt_crc_valid(t.header, t.partition))
-                header_warning("Header CRC is not valid");
+            if (!gpt_crc_valid(t.header, t.partition)) {
+                header_warning("Header CRC is not valid. Fixing.");
+                update_table_crc(&t);
+            }
         }
     } else if (alternate_valid) {
         if (t.alt_header->partition_entries * t.alt_header->partition_entry_size / dev->sector_size > dev->sector_count/2)
@@ -621,8 +623,10 @@ static struct partition_table read_gpt_table(struct device *dev)
             t.partition = get_sectors(dev, t.alt_header->partition_entry_lba, divide_round_up(t.alt_header->partition_entry_size * t.alt_header->partition_entries,dev->sector_size));
             gpt_partition_to_host(t.partition, t.alt_header->partition_entries);
 
-            if (!gpt_crc_valid(t.alt_header, t.partition))
-                header_warning("Alt Header CRC is not valid");
+            if (!gpt_crc_valid(t.alt_header, t.partition)) {
+                header_warning("Alt Header CRC is not valid. Fixing.");
+                update_table_crc(&t);
+            }
         }
     }
 
