@@ -1034,6 +1034,57 @@ struct write_image image_from_table(struct partition_table t)
     return image;
 }
 
+static struct write_vec *find_vec_in_image(struct write_image *image, char *name)
+{
+    for (int i=0; i<image->count; i++)
+        if (strcmp(image->vec[i].name, name) == 0)
+            return &image->vec[i];
+    return NULL;
+}
+
+static struct partition_table table_from_image(struct write_image image, struct device *dev)
+{
+    struct partition_table t = blank_table(dev);
+
+#define find_vec(vec_name, vec_blocks) ({                               \
+            struct write_vec *vec = find_vec_in_image(&image, vec_name); \
+            if (!vec) {                                                 \
+                fprintf(stderr, "Image is missing %s section.\n", vec_name); \
+                free_table(t);                                          \
+                return blank_table(dev);                                \
+            }                                                           \
+            if (vec->blocks != vec_blocks) {                            \
+                fprintf(stderr, "Section %s is %lu blocks instead of %"PRIu64".\n", vec_name, (unsigned long) vec_blocks, vec->blocks); \
+                free_table(t);                                          \
+                return blank_table(dev);                                \
+            }                                                           \
+            vec;                                                        \
+        })
+
+    struct write_vec *mbr                = find_vec("mbr",                1);
+    struct write_vec *gpt_header         = find_vec("gpt_header",         1);
+    struct write_vec *alt_gpt_header     = find_vec("alt_gpt_header",     1);
+
+    t.mbr = mbr_from_sector(mbr->buffer);
+
+    memcpy(t.header, gpt_header->buffer, sizeof(t.header));
+    gpt_header_to_host(t.header);
+
+    memcpy(t.alt_header, alt_gpt_header->buffer, sizeof(t.alt_header));
+    gpt_header_to_host(t.alt_header);
+
+    struct write_vec *gpt_partitions     = find_vec("gpt_partitions",     partition_sectors(t));
+    //struct write_vec *alt_gpt_partitions = find_vec("alt_gpt_partitions", partition_sectors(t));
+
+    free(t.partition); // May be a different length, so reallocate it.
+    t.partition = xmemdup(gpt_partitions->buffer, sizeof(*t.partition) * t.header->partition_entries);
+    gpt_partition_to_host(t.partition, t.header->partition_entries);
+
+    create_mbr_alias_table(&t);
+
+    return t;
+}
+
 void free_image(struct write_image image)
 {
     for (int i=0; i < image.count; i++) {
@@ -1089,6 +1140,85 @@ int command_export(char **arg)
 command_add("export", command_export, "Save table to a file (not to a device)",
             command_arg("filename", C_File, "Filename to as a base use for exported files"));
 
+static int import_image(struct write_image *image_out, struct device *dev, char *filename)
+{
+    struct write_image image = { .count = 0 };
+    FILE *info = NULL, *data = NULL;
+    int err = 0;
+    if ((data = fopen(csprintf("%s.data", filename), "rb")) == NULL) { err = errno; warn("Couldn't open %s.data", filename); goto done; }
+    if ((info = fopen(csprintf("%s.info", filename), "r"))  == NULL) { err = errno; warn("Couldn't open %s.info", filename); goto done; }
+
+    unsigned long sector_size=0;
+    unsigned long long sector_count=0;
+    char device[1000]="";
+
+    char line[1000];
+    char section[20];
+
+    while(fgets(line, sizeof(line), info)) {
+        if (!sector_size && sscanf(line, "# sector_size: %ld", &sector_size) == 1 && sector_size != dev->sector_size) {
+            fprintf(stderr, "image file has a sector size of %ld but device %s wants %ld\n", sector_size, dev->name, dev->sector_size);
+            err = EINVAL;
+            goto done;
+        }
+        if (!sector_count && sscanf(line, "# sector_count: %lld", &sector_count) == 1 && sector_count != dev->sector_count) {
+            fprintf(stderr, "image file has %lld LBAs but device %s has %lld\n", sector_count, dev->name, dev->sector_count);
+            err = EINVAL;
+            goto done;
+        }
+        if (!device[0] && sscanf(line, "# device: %1000s", device) == 1 && strcmp(device,dev->name) != 0)
+            fprintf(stderr, "Warning: image file was created from %s but we're operating on %s.\n", device, dev->name);
+        if (sscanf(line, "# %20s:", section) == 1)
+            if (section[0] && section[strlen(section)-1] == ':')
+                section[strlen(section)-1] = '\0';
+        unsigned long long skip, seek;
+        unsigned long count;
+        if (sscanf(line, "dd if=\"%*s of=\"%*s bs=%*d skip=%llu seek=%llu count=%lu", &skip, &seek, &count) == 3) {
+            if (image.count == lengthof(image.vec)) {
+                err = ENOSPC;
+                printf("Too many sections in %s.info\n", filename);
+                goto done;
+            }
+            void *buf = alloc_sectors(dev, count);
+            if (fseek(data, skip*dev->sector_size, SEEK_SET)) {
+                warn("Couldn't seek to %lld in %s.data", skip*dev->sector_size, filename);
+                goto done;
+            }
+            if (fread(buf, dev->sector_size, count, data) != count) {
+                warn("Couldn't read %s from %s.data", section, filename);
+                goto done;
+            }
+            image.vec[image.count++] = (struct write_vec) {
+                .buffer = buf,
+                .block  = seek,
+                .blocks = count,
+                .name = xstrdup(section),
+            };
+        }
+    }
+
+  done:
+    if (data) fclose(data);
+    if (info) fclose(info);
+    if (!err) *image_out = image;
+    else free_image(image);
+    return err;
+}
+
+int command_import(char **arg)
+{
+    struct write_image image = {};
+    int status = import_image(&image, g_table.dev, arg[1]);
+    for (int i=0; i<image.count; i++)
+        printf(" %d) %20s: %llu @ %llu\n", i, image.vec[i].name, image.vec[i].blocks, image.vec[i].block);
+    struct device *dev = g_table.dev;
+    free_table(g_table);
+    g_table = table_from_image(image, dev);
+    free_image(image);
+    return status;
+}
+command_add("import", command_import, "Load table from a previously exported file",
+            command_arg("filename", C_File, "Base filename to import (don't include .info or .data)"));
 
 static struct write_image image_from_image(struct write_image image, struct device *dev)
 {
