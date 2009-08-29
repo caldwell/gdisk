@@ -13,7 +13,7 @@ void *alloc_sectors(struct device *dev, unsigned long sectors)
     return data;
 }
 
-void *get_sectors(struct device *dev, unsigned long sector_num, unsigned long sectors)
+void *get_sectors(struct device *dev, unsigned long long sector_num, unsigned long sectors)
 {
     void *data = alloc_sectors(dev, sectors);
     if (!device_read(dev, data, sector_num, sectors))
@@ -72,12 +72,12 @@ void close_device(struct device *dev)
 }
 
 #include <stdio.h>
-bool device_read(struct device *dev, void *buffer, unsigned int sector, unsigned long long sectors)
+bool device_read(struct device *dev, void *buffer, unsigned long long sector, unsigned long sectors)
 {
     return pread(dev->fd, buffer, dev->sector_size * sectors, dev->sector_size * sector) == dev->sector_size * sectors;
 }
 
-bool device_write(struct device *dev, void *buffer, unsigned int sector, unsigned long long sectors)
+bool device_write(struct device *dev, void *buffer, unsigned long long sector, unsigned long sectors)
 {
     return pwrite(dev->fd, buffer, dev->sector_size * sectors, dev->sector_size * sector) == dev->sector_size * sectors;
 }

@@ -12,13 +12,13 @@ struct device {
 };
 
 void *alloc_sectors(struct device *dev, unsigned long sectors);
-void *get_sectors(struct device *dev, unsigned long sector_num, unsigned long sectors);
+void *get_sectors(struct device *dev, unsigned long long sector_num, unsigned long sectors);
 
 // device specific:
 struct device *open_device(char *name);
 void close_device(struct device *dev);
-bool device_read(struct device *dev, void *buffer, unsigned int sector, unsigned long long sectors);
-bool device_write(struct device *dev, void *buffer, unsigned int sector, unsigned long long sectors);
+bool device_read(struct device *dev, void *buffer, unsigned long long sector, unsigned long sectors);
+bool device_write(struct device *dev, void *buffer, unsigned long long sector, unsigned long sectors);
 char *device_help();
 
 // Backend use only:
