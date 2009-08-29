@@ -38,7 +38,6 @@ struct mbr mbr_from_sector(void *sector)
         p->sectors               = le4(mbr_buf, po + 12);
     }
     mbr.mbr_signature = le2(mbr_buf, 510);
-    free(mbr_buf);
     return mbr;
 }
 
@@ -82,13 +81,17 @@ void *sector_from_mbr(struct device *dev, struct mbr mbr)
 struct mbr read_mbr(struct device *dev)
 {
     void *sector = get_sectors(dev, 0, 1);
-    return mbr_from_sector(sector);
+    struct mbr mbr = mbr_from_sector(sector);
+    free(sector);
+    return mbr;
 }
 
 bool write_mbr(struct device *dev, struct mbr mbr)
 {
     void *sector = sector_from_mbr(dev, mbr);
-    return device_write(dev, sector, 0, 1);
+    bool status = device_write(dev, sector, 0, 1);
+    free(sector);
+    return status;
 }
 
 #include <stdio.h>
