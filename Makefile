@@ -16,6 +16,9 @@ gdisk: LDLIBS += -lreadline -lz
 gdisk: LDLIBS-linux += -luuid
 gdisk.o: CFLAGS-macosx += -Drl_filename_completion_function=filename_completion_function
 
+TAGS: *.c
+	find . -name "*.[ch]" | etags -
+
 clean:
 	rm -f *.o
 	rm -f $(TARGETS)
