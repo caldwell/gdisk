@@ -513,11 +513,15 @@ static struct partition_table read_gpt_table(struct device *dev)
     struct partition_table t = {};
     t.dev = dev;
 
-    t.header = get_sectors(dev,1,1);
+    bool primary_valid = true, alternate_valid = true;
+
+#define valid_header (primary_valid   ? t.header     :          \
+                      alternate_valid ? t.alt_header : NULL)
+
 
 #define header_error(format, ...) ({                        \
             fprintf(stderr, format, ##__VA_ARGS__);         \
-            fprintf(stderr, ". Assuming blank partition.\n");\
+            fprintf(stderr, ". Assuming blank partition...\n");   \
             free_table(t);                                  \
             blank_table(dev);                               \
         })
@@ -528,41 +532,103 @@ static struct partition_table read_gpt_table(struct device *dev)
             fprintf(stderr, ".\n");                 \
         })
 
+#define header_corrupt(which, format, ...) ({                             \
+        header_warning(format, ##__VA_ARGS__);                            \
+        which ## _valid = false;                                          \
+        if (!valid_header)                                                \
+            return header_error("There were no valid GPT headers found"); \
+        })
+
+    t.header = get_sectors(dev,1,1);
+
     if (memcmp(t.header->signature, "EFI PART", sizeof(t.header->signature)) != 0)
-        return header_error("Missing signature");
+        header_corrupt(primary, "Missing signature in primary GPT header");
+    else
+        gpt_header_to_host(t.header);
 
-    gpt_header_to_host(t.header);
-
-    t.alt_header = get_sectors(dev,t.header->alternate_lba,1);
+    t.alt_header = get_sectors(dev, primary_valid ? t.header->alternate_lba : dev->sector_count-1, 1);
 
     if (memcmp(t.alt_header->signature, "EFI PART", sizeof(t.alt_header->signature)) != 0)
-        return header_error("Missing signature in altername GPT header");
+        header_corrupt(alternate, "Missing signature in altername GPT header");
+    else
+        gpt_header_to_host(t.alt_header);
 
-    gpt_header_to_host(t.alt_header);
+    if (primary_valid && t.header->header_size != sizeof(struct gpt_header))
+        header_corrupt(primary, "Partition header is %d bytes long instead of %zd", t.header->header_size, sizeof(struct gpt_header));
 
-    if (t.header->header_size != sizeof(struct gpt_header))
-        return header_error("Partition header is %d bytes long instead of %zd", t.header->header_size, sizeof(struct gpt_header));
+    if (alternate_valid && t.alt_header->header_size != sizeof(struct gpt_header))
+        header_corrupt(alternate, "Partition header is %d bytes long instead of %zd", t.header->header_size, sizeof(struct gpt_header));
 
-    if (sizeof(struct gpt_partition) != t.header->partition_entry_size)
-        return header_error("Size of partition entries are %d instead of %zd", t.header->partition_entry_size, sizeof(struct gpt_partition));
+    if (primary_valid && t.header->partition_entry_size != sizeof(struct gpt_partition))
+        header_corrupt(primary, "Size of partition entries are %d instead of %zd", t.header->partition_entry_size, sizeof(struct gpt_partition));
 
-    if (t.header->my_lba != 1)
-        header_warning("Header LBA is %"PRId64" and not 1", t.header->my_lba);
+    if (alternate_valid && t.alt_header->partition_entry_size != sizeof(struct gpt_partition))
+        header_corrupt(alternate, "Size of partition entries are %d instead of %zd", t.alt_header->partition_entry_size, sizeof(struct gpt_partition));
 
-    if (t.alt_header->my_lba != t.header->alternate_lba)
-        header_warning("Alternate header LBA is %"PRId64" and not %"PRId64"", t.alt_header->my_lba, t.header->alternate_lba);
+    uint64_t primary_lba,alternate_lba;
+    if (primary_valid && alternate_valid && t.header->my_lba != t.alt_header->alternate_lba) {
+        header_warning("Header LBA is %"PRId64" but alternate header claims it is %"PRId64"", t.header->my_lba, t.header->alternate_lba);
+        if (t.header->my_lba == 1 || t.alt_header->alternate_lba == 1)
+            primary_lba = 1; // It *really* should be one.
+        else
+            primary_lba = t.header->my_lba; // In any other screwball case, trust the primary header.
+    } else
+        primary_lba = primary_valid ? t.header->my_lba : t.alt_header->alternate_lba;
 
-    if (t.header->alternate_lba != dev->sector_count-1)
-        header_warning("Alternate header LBA is %"PRId64" and not at the end of the disk (LBA: %llu)", t.header->alternate_lba, dev->sector_count-1);
+    if (primary_lba != 1)
+        header_warning("Header LBA is %"PRId64" and not 1", primary_lba);
 
-    t.partition = get_sectors(dev, 2, divide_round_up(t.header->partition_entry_size * t.header->partition_entries,dev->sector_size));
-    gpt_partition_to_host(t.partition, t.header->partition_entries);
+    if (primary_valid && alternate_valid && t.header->alternate_lba != t.alt_header->my_lba) {
+        header_warning("Primary header says Alternate header LBA is %"PRId64" but alternate header claims it is %"PRId64"", t.header->alternate_lba, t.header->my_lba);
+        if (t.header->my_lba == dev->sector_count-1 || t.alt_header->alternate_lba == dev->sector_count-1)
+            alternate_lba = dev->sector_count-1;
+        else
+            alternate_lba = t.header->alternate_lba; // In any other screwball case, trust the primary header.
+    } else
+        alternate_lba = primary_valid ? t.header->alternate_lba : t.alt_header->my_lba;
 
-    if (!gpt_crc_valid(t.header, t.partition))
-        header_warning("Header CRC is not valid");
+    if (alternate_lba != dev->sector_count-1)
+        header_warning("Alternate header LBA is %"PRId64" and not at the end of the disk (LBA: %llu)", alternate_lba, dev->sector_count-1);
 
-    if (!gpt_crc_valid(t.alt_header, t.partition))
-        header_warning("Alternate header CRC is not valid");
+    // Technically we can guess the start lba and check the validity of the opposite table if the one we're looking at doesn't CRC..
+    if (primary_valid) {
+        if (t.header->partition_entries * t.header->partition_entry_size / dev->sector_size > dev->sector_count/2)
+            header_corrupt(primary, "The number of partition_entries is ludicrous: %d", t.header->partition_entries);
+        else {
+            t.partition = get_sectors(dev, t.header->partition_entry_lba, divide_round_up(t.header->partition_entry_size * t.header->partition_entries,dev->sector_size));
+            gpt_partition_to_host(t.partition, t.header->partition_entries);
+
+            if (!gpt_crc_valid(t.header, t.partition))
+                header_warning("Header CRC is not valid");
+        }
+    } else if (alternate_valid) {
+        if (t.alt_header->partition_entries * t.alt_header->partition_entry_size / dev->sector_size > dev->sector_count/2)
+            header_corrupt(alternate, "The number of partition_entries is ludicrous: %d", t.alt_header->partition_entries);
+        else {
+            t.partition = get_sectors(dev, t.alt_header->partition_entry_lba, divide_round_up(t.alt_header->partition_entry_size * t.alt_header->partition_entries,dev->sector_size));
+            gpt_partition_to_host(t.partition, t.alt_header->partition_entries);
+
+            if (!gpt_crc_valid(t.alt_header, t.partition))
+                header_warning("Alt Header CRC is not valid");
+        }
+    }
+
+    #warning "TODO: Sanity check first_usable_lba and last_usable_lba."
+
+    // If one is bad, fix it from the other one...
+    if (!primary_valid && alternate_valid) {
+        *t.alt_header = *t.header;
+        uint64_t temp = t.alt_header->my_lba;
+        t.alt_header->my_lba = t.alt_header->alternate_lba;
+        t.alt_header->alternate_lba = temp;
+        t.alt_header->partition_entry_lba = t.alt_header->last_usable_lba + 1;
+    } else if (primary_valid && !alternate_valid) {
+        *t.header = *t.alt_header;
+        uint64_t temp = t.header->my_lba;
+        t.header->my_lba = t.header->alternate_lba;
+        t.header->alternate_lba = temp;
+        t.header->partition_entry_lba = t.header->my_lba + 1;
+    }
 
     #warning "TODO: Capture both sets of partition tables in case on has a bad crc."
 
