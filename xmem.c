@@ -39,6 +39,7 @@ void *xmemdup(void *mem, size_t size)
 // Like strcat, but reallocs to make room (so dest must come from malloc)
 char *xstrcat(char *dest, char *src)
 {
+    if (!dest) return xstrdup(src);
     dest = xrealloc(dest, strlen(dest) + strlen(src) + 1);
     strcat(dest, src);
     return dest;
