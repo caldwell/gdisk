@@ -1087,7 +1087,23 @@ static struct write_image image_from_image(struct write_image image, struct devi
     return on_disk;
 }
 
-static int write_table(struct partition_table t, bool force)
+static void dump_data(void *data, size_t length)
+{
+    unsigned char *d = data;
+    for (int i=0; i<length; i+=16) {
+        int chunk=MIN(length,i+16);
+        printf("  ");
+        for (int j=i; j<chunk; j++)
+            printf("%02x ", d[j]);
+        if (chunk%16)
+            printf("%*s", (16-chunk%16)*3, "");
+        for (int j=i; j<chunk; j++)
+            printf("%c",  isprint(d[j]) ? d[j] : '.');
+        printf("\n");
+    }
+}
+
+static int write_table(struct partition_table t, bool force, bool dry_run, bool verbose)
 {
     char *HOME = getenv("HOME");
     if (!HOME) {
@@ -1122,21 +1138,26 @@ static int write_table(struct partition_table t, bool force)
     free_image(backup);
 
     int err = 0;
-    for (int i=0; i<image.count; i++)
-        if (!device_write(t.dev, image.vec[i].buffer, image.vec[i].block, image.vec[i].blocks)) {
+    for (int i=0; i<image.count; i++) {
+        if (dry_run || verbose)
+            printf("Writing %"PRIu64" blocks to LBA %"PRIu64"...\n", image.vec[i].blocks, image.vec[i].block);
+        if (verbose)
+            dump_data(image.vec[i].buffer, image.vec[i].blocks * t.dev->sector_size);
+        if (!dry_run && !device_write(t.dev, image.vec[i].buffer, image.vec[i].block, image.vec[i].blocks)) {
             err = errno;
             warn("Error while writing %s to %s", image.vec[i].name, t.dev->name);
             if (i > 0)
                 fprintf(stderr, "The partition table on your disk is now most likely corrupt.\n");
             break;
         }
+    }
     free_image(image);
     return err;
 }
 
 int command_write(char **arg)
 {
-    int status = write_table(g_table, !!arg[1]);
+    int status = write_table(g_table, !!arg[1], !!arg[2], !!arg[3]);
     if (status == ECANCELED) {
         status = ENOENT; // ECANCELED will quit the program if we return it.
         fprintf(stderr, "Table not written because a backup of the existing data could not be made.\n"
@@ -1145,7 +1166,9 @@ int command_write(char **arg)
     return status;
 }
 command_add("write", command_write, "Write the partition table back to the disk",
-            command_arg("force", C_Flag, "Force table to be written even if backup cannot be saved"));
+            command_arg("force", C_Flag, "Force table to be written even if backup cannot be saved"),
+            command_arg("dry-run", C_Flag, "Don't write the table, just print what we would do"),
+            command_arg("verbose", C_Flag, "Dump all the data to the screen before writing"));
 
 static char *_p_first_lba(struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return dsprintf("%14"PRId64"", p->first_lba); }
 static char *_p_last_lba (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return dsprintf("%14"PRId64"", p->last_lba); }
