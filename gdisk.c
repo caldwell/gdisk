@@ -1238,9 +1238,20 @@ static struct write_image image_from_image(struct write_image image, struct devi
 
 static void dump_data(void *data, size_t length)
 {
+    const unsigned char zero[6/*lines*/ * 16] = { 0 };
     unsigned char *d = data;
     for (int i=0; i<length; i+=16) {
         int chunk=MIN(length,i+16);
+
+        if (length-i >= sizeof(zero) && memcmp(zero, &d[i], sizeof(zero)) == 0) {
+            int zeros=0;
+            for (; i < round_down(length,16) && memcmp(zero, &d[i], 16) == 0; i+=16)
+                zeros += 16;
+            printf("    * Skipped %d zeros\n", zeros);
+            i -= 16;
+            continue;
+        }
+        
         printf("  ");
         for (int j=i; j<chunk; j++)
             printf("%02x ", d[j]);
