@@ -922,10 +922,13 @@ static int command_edit(char **arg)
         int mbr_type = find_mbr_equivalent(type);
         if (g_table.options.mbr_sync && mbr_alias != -1 && mbr_type)
             g_table.mbr.partition[mbr_alias].partition_type = mbr_type;
+        update_table_crc(&g_table);
     }
 
-    if (arg[3])
+    if (arg[3]) {
         utf16_from_ascii(g_table.partition[index].name, arg[3], lengthof(g_table.partition[index].name));
+        update_table_crc(&g_table);
+    }
 
     if (arg[4]) {
         GUID guid = guid_from_string(arg[4]);
@@ -934,6 +937,7 @@ static int command_edit(char **arg)
             return EINVAL;
         }
         g_table.partition[index].partition_guid = guid;
+        update_table_crc(&g_table);
     }
 
     return 0;
