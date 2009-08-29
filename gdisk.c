@@ -1151,7 +1151,7 @@ static char *_p_first_lba(struct gpt_partition *p, struct mbr_partition *m, stru
 static char *_p_last_lba (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !p ? "End LBA"   : dsprintf("%14"PRId64"", p->last_lba); }
 static char *_p_size     (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !p ? "Size" : dsprintf("%14"PRId64" (%9s)", (p->last_lba - p->first_lba + 1) * dev->sector_size,
                                                                                                                        human_string((p->last_lba - p->first_lba + 1) * dev->sector_size)); }
-static char *_p_guid     (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !p ? "-GUID" : guid_str(p->partition_guid); }
+static char *_p_guid     (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !p ? "-GUID" : dstrdup(guid_str(p->partition_guid)); }
 static char *_p_flags    (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !p ? "-Flags": dsprintf("implement_me"); }
 static char *_p_boot     (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !p ? "-B" : !m ? "" : dsprintf("%s", m->status & MBR_STATUS_BOOTABLE ? "*" : ""); }
 static char *_p_mbr_type (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !p ? "-MBR" : !m ? "" : dsprintf("%02x", m->partition_type); }
