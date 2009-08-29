@@ -824,6 +824,8 @@ static int command_create_partition(char **arg)
 
     *p = part;
 
+    update_table_crc(&g_table);
+
     if (g_table.options.mbr_sync)
         sync_partition_to_mbr(&g_table, p - g_table.partition);
 
