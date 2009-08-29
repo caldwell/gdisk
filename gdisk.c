@@ -461,6 +461,19 @@ static int command_clear_mbr(char **arg)
 }
 command_add("clear-mbr", command_clear_mbr, "Clear out MBR partition table and start anew.");
 
+static int command_create_protective_mbr(char **arg)
+{
+    g_table.mbr = blank_mbr(g_table.dev);
+    g_table.mbr.partition[0] = (struct mbr_partition) {
+        .first_sector_lba = 1,
+        .sectors = g_table.dev->sector_count-1,
+        .partition_type = 0xee,
+    };
+    create_mbr_alias_table(&g_table);
+    return 0;
+}
+command_add("create-protective-mbr", command_create_protective_mbr, "Replace MBR entries with a protective MBR as per the EFI spec.");
+
 static struct partition_table gpt_table_from_mbr(struct mbr mbr, struct device *dev)
 {
     struct partition_table t = blank_table(dev);
