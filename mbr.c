@@ -109,8 +109,8 @@ void dump_mbr(struct mbr mbr)
         printf("[%d] last_sector.cylinder  = %d\n",   i, mbr.partition[i].last_sector.cylinder);
         printf("[%d] last_sector.head      = %d\n",   i, mbr.partition[i].last_sector.head);
         printf("[%d] last_sector.sector    = %d\n",   i, mbr.partition[i].last_sector.sector);
-        printf("[%d] first_sector_lba      = %d\n",   i, mbr.partition[i].first_sector_lba);
-        printf("[%d] sectors               = %d\n",   i, mbr.partition[i].sectors);
+        printf("[%d] first_sector_lba      = %u\n",   i, mbr.partition[i].first_sector_lba);
+        printf("[%d] sectors               = %u\n",   i, mbr.partition[i].sectors);
     }
     printf("signature                  = %02x\n",mbr.mbr_signature);
 }

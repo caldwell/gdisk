@@ -19,8 +19,8 @@ struct mbr {
         struct chs first_sector;
         int partition_type;
         struct chs last_sector;
-        int first_sector_lba;
-        int sectors;
+        unsigned int first_sector_lba;
+        unsigned int sectors;
     } partition[4];
     int mbr_signature;
 };
