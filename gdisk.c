@@ -39,6 +39,7 @@ struct free_space {
     uint64_t blocks;
 };
 static struct free_space *find_free_spaces(struct partition_table unsorted);
+static struct free_space largest_free_space(struct partition_table unsorted);
 static void dump_dev(struct device *dev);
 static void dump_header(struct gpt_header *header);
 static void dump_partition(struct gpt_partition *p);
@@ -755,6 +756,18 @@ static uint64_t find_free_space(struct partition_table unsorted, uint64_t blocks
     return start;
 }
 
+static struct free_space largest_free_space(struct partition_table unsorted)
+{
+    struct free_space found = { .blocks = 0 };
+    struct free_space *space = find_free_spaces(unsorted);
+    for (int i=0; i<space[i].blocks; i++)
+        if (space[i].blocks >= found.blocks)
+            found = space[i];
+    free(space);
+    return found;
+}
+
+
 static GUID type_guid_from_string(char *s)
 {
     for (int t=0; gpt_partition_type[t].name; t++) {
@@ -805,7 +818,19 @@ static int command_create_partition(char **arg)
 
     uint64_t size = human_size(arg[2]);
     uint64_t blocks = divide_round_up(size, g_table.dev->sector_size);
-    part.first_lba = arg[4] ? strtoull(arg[4], NULL, 0) : find_free_space(g_table, blocks);
+    if (!size) {
+        struct free_space largest = largest_free_space(g_table);
+        if (!largest.blocks) {
+            fprintf(stderr, "There is no free space left!\n");
+            return ENOSPC;
+        }
+        blocks = largest.blocks;
+        size = blocks * g_table.dev->sector_size;
+        part.first_lba = largest.first_lba;
+        printf("Largest unused space: %"PRId64" blocks (%"PRId64", %s) at block %"PRId64".\n",
+               blocks, size, human_string(size), part.first_lba);
+    } else
+        part.first_lba = arg[4] ? strtoull(arg[4], NULL, 0) : find_free_space(g_table, blocks);
     if (part.first_lba == -1LL) {
         fprintf(stderr, "Couldn't find %"PRId64" blocks (%"PRId64", %s) of free space.\n", blocks, size, human_string(size));
         return ENOSPC;
