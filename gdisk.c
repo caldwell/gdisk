@@ -475,6 +475,21 @@ static int command_create_protective_mbr(char **arg)
 }
 command_add("create-protective-mbr", command_create_protective_mbr, "Replace MBR entries with a protective MBR as per the EFI spec.");
 
+static int command_add_protective_mbr_partition(char **arg)
+{
+    struct partition_table *t = &g_table;
+    for (int i=0; i < lengthof(t->mbr.partition); i++)
+        if (t->mbr.partition[i].partition_type == 0) {
+            t->mbr.partition[i] = (struct mbr_partition) {
+                .first_sector_lba = 1,
+                .sectors = g_table.header->first_usable_lba-1-1/*mbr*/,
+                .partition_type = 0xee,
+            };
+            return true;
+        }
+}
+command_add("add-protective-mbr-partition", command_add_protective_mbr_partition, "Add a protective MBR entry that just covers the EFI partitioning sectors.");
+
 static struct partition_table gpt_table_from_mbr(struct mbr mbr, struct device *dev)
 {
     struct partition_table t = blank_table(dev);
