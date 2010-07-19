@@ -4,13 +4,11 @@
 #include <errno.h>
 #include <err.h>
 #include "device.h"
+#include "xmem.h"
 
 void *alloc_sectors(struct device *dev, unsigned long sectors)
 {
-    char *data = calloc(sectors, dev->sector_size);
-    if (!data)
-        err(0, "Couldn't allocate memory for %ld sectors (%ld bytes)", sectors, dev->sector_size * sectors);
-    return data;
+    return xcalloc(sectors, dev->sector_size);
 }
 
 void *get_sectors(struct device *dev, unsigned long long sector_num, unsigned long sectors)
@@ -67,8 +65,6 @@ void close_device(struct device *dev)
 {
     if (!dev) return;
     close(dev->fd);
-    free(dev->name);
-    free(dev);
 }
 
 #include <stdio.h>

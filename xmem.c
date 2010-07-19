@@ -3,30 +3,37 @@
 #include <string.h>
 #include <errno.h>
 #include <err.h>
+#include <gc/gc.h>
 #include "xmem.h"
 
 void *xmalloc(size_t size)
 {
-    void *mem = malloc(size);
+    void *mem = GC_MALLOC(size);
     if (!mem) err(errno, "Out of memory");
     return mem;
 }
 void *xcalloc(size_t count, size_t size)
 {
-    void *mem = calloc(count, size);
+    void *mem = GC_MALLOC(count * size);
     if (!mem) err(errno, "Out of memory");
     return mem;
 }
 void *xrealloc(void *old, size_t count)
 {
-    void *mem = realloc(old, count);
+    void *mem = GC_REALLOC(old, count);
     if (!mem) err(errno, "Out of memory");
     return mem;
 }
 char *xstrdup(char *s)
 {
-    char *dup = strdup(s);
-    if (!dup) err(errno, "Out of memory");
+    char *dup = xmalloc(strlen(s));
+    strcpy(dup,s);
+    return dup;
+}
+char *xstrdupfree(char *s)
+{
+    char *dup = xstrdup(s);
+    free(s);
     return dup;
 }
 void *xmemdup(void *mem, size_t size)
@@ -49,15 +56,19 @@ char *xstrcat(char *dest, char *src)
 #include <stdio.h>
 int vxsprintf(char **out, const char *format, va_list ap)
 {
-    int count = vasprintf(out, format, ap);
-    if (count == -1 || !*out) err(errno, "Out of memory");
+    char *tmp;
+    int count = vasprintf(&tmp, format, ap);
+    if (count == -1 || !tmp) err(errno, "Out of memory");
+    *out = xstrdup(tmp); // Get it into a buffer that's managed by the garbage collector
+    free(tmp);
     return count;
 }
-int xsprintf(char **out, char *format, ...)
+char *xsprintf(char *format, ...)
 {
     va_list ap;
     va_start(ap, format);
-    int count = vxsprintf(out, format, ap);
+    char *out;
+    /*int count = */vxsprintf(&out, format, ap);
     va_end(ap);
-    return count;
+    return out;
 }

@@ -10,9 +10,9 @@ TARGETS = gdisk
 
 all: $(TARGETS)
 
-gdisk: gdisk.o guid.o partition-type.o mbr.o device.o autolist.o csprintf.o human.o xmem.o dalloc.o device-$(PLATFORM).o
+gdisk: gdisk.o guid.o partition-type.o mbr.o device.o autolist.o csprintf.o human.o xmem.o device-$(PLATFORM).o
 
-gdisk: LDLIBS += -lreadline -lz
+gdisk: LDLIBS += -lreadline -lz -lgc
 gdisk: LDLIBS-linux += -luuid
 gdisk.o: CFLAGS-macosx += -Drl_filename_completion_function=filename_completion_function
 

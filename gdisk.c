@@ -23,7 +23,6 @@
 #include "csprintf.h"
 #include "human.h"
 #include "xmem.h"
-#include "dalloc.h"
 #include "gdisk.h"
 
 autolist_define(command);
@@ -43,7 +42,6 @@ static struct free_space largest_free_space(struct partition_table unsorted);
 static void dump_dev(struct device *dev);
 static void dump_header(struct gpt_header *header);
 static void dump_partition(struct gpt_partition *p);
-static size_t sncatprintf(char *buffer, size_t space, char *format, ...) __attribute__ ((format (printf, 3, 4)));
 static char *tr(char *in, char *from, char *to);
 static char *trdup(char *in, char *from, char *to);
 static char *ctr(char *in, char *from, char *to);
@@ -84,7 +82,6 @@ int main(int c, char **v)
         status = run_command(line, &final_line);
         add_history(final_line);
         free(line);
-        free(final_line);
     } while (status != ECANCELED); // Special case meaning Quit!
     printf("\nQuitting without saving changes.\n");
 
@@ -112,14 +109,14 @@ char *next_word(char **line)
 
 static char **parse_command(char *line)
 {
-    char **v = dcalloc(1, sizeof(char*));
+    char **v = xcalloc(1, sizeof(char*));
     int c = 0;
 
     char *rest = line;
     char *word;
     while (word = next_word(&rest)) {
         if (!*word) continue; // compact multiple consecutive separators
-        v = drealloc(v, sizeof(char *) * (c+2));
+        v = xrealloc(v, sizeof(char *) * (c+2));
         v[c] = word;
         v[c+1] = NULL;
         c++;
@@ -138,7 +135,6 @@ static struct command *find_command(char *command)
 static int run_command(char *line, char **final_line)
 {
     if (final_line) *final_line = xstrdup(line);
-    dalloc_start();
     int status = 0;
     char **cmdv = NULL;
     char **argv = parse_command(line);
@@ -165,7 +161,7 @@ static int run_command(char *line, char **final_line)
     int args;
     for (args=0; c->arg[args].name; args++) {}
 
-    cmdv = dcalloc(1+args+1, sizeof(*argv));
+    cmdv = xcalloc(1+args+1, sizeof(*argv));
     cmdv[0] = argv[0];
     for (int i=1; i<argc; i++) {
         if (argv[i][0] == '-') {
@@ -209,7 +205,7 @@ static int run_command(char *line, char **final_line)
         if (*v) continue; // Don't prompt for args entered on command line.
         if (c->arg[a].type & C_Optional)
             continue;
-        char *prompt = dsprintf("%s: Enter %s: ", c->name, c->arg[a].help);
+        char *prompt = xsprintf("%s: Enter %s: ", c->name, c->arg[a].help);
         if (!prompt) err(ENOMEM, "No memory for argument prompt");
 
         if (C_Type(c->arg[a].type) == C_File)
@@ -223,7 +219,7 @@ static int run_command(char *line, char **final_line)
         // rl_basic_word_break_characters = "";
         rl_completion_append_character = '\0';
 
-        *v = dalloc_remember(readline(prompt));
+        *v = xstrdupfree(readline(prompt));
         if (!*v) goto done;
         *v = trim(*v);
 
@@ -236,13 +232,12 @@ static int run_command(char *line, char **final_line)
     status = c->handler(cmdv);
 
   done:
-    dalloc_free();
     return status;
 }
 
 static char *arg_name(struct command_arg_ *arg)
 {
-    return dsprintf("%s%s%s",
+    return xsprintf("%s%s%s",
                     arg->type == C_Flag ? "--" : "<",
                     arg->name,
                     arg->type == C_Flag ? ""   : ">");
@@ -307,34 +302,28 @@ static char *command_completion(const char *text, int state)
     foreach_autolist(struct command *c, command)
         if (strncmp(text, c->name, strlen(text)) == 0 &&
             i++ == state)
-            return xstrdup(c->name);
+            return strdup(c->name);
     return NULL;
 }
 
 static char *partition_size_completion(const char *text, int state)
 {
     struct free_space *space = find_free_spaces(g_table);
-    char *size = NULL;
     for (int i=0, s=0; i<space[i].blocks; i++) {
-        char *_size = NULL; asprintf(&_size, "%"PRId64, space[i].blocks * g_table.dev->sector_size);
-        if (strncasecmp(text, _size, strlen(text)) == 0 && s++ == state) {
-            size = _size;
-            break;
-        }
-        free(_size);
+        char *size = xsprintf("%"PRId64, space[i].blocks * g_table.dev->sector_size);
+        if (strncasecmp(text, size, strlen(text)) == 0 && s++ == state)
+            return strdup(size);
     }
-    free(space);
-    return size;
+    return NULL;
 }
 
 static char *partition_type_completion(const char *text, int state)
 {
     for (int i=0, s=0; gpt_partition_type[i].name; i++) {
-        char *_name = trdup(gpt_partition_type[i].name, " ", "_");
-        if (strncasecmp(text, _name, strlen(text)) == 0 &&
+        char *name = trdup(gpt_partition_type[i].name, " ", "_");
+        if (strncasecmp(text, name, strlen(text)) == 0 &&
             s++ == state)
-            return _name;
-        free(_name);
+            return strdup(name);
     }
     return NULL;
 }
@@ -669,9 +658,6 @@ static struct partition_table read_table(struct device *dev)
 
 static void free_table(struct partition_table t)
 {
-    free(t.header);
-    free(t.alt_header);
-    free(t.partition);
 }
 
 static struct partition_table dup_table(struct partition_table t)
@@ -752,7 +738,6 @@ static uint64_t find_free_space(struct partition_table unsorted, uint64_t blocks
             start = space[i].first_lba;
             break;
         }
-    free(space);
     return start;
 }
 
@@ -763,7 +748,6 @@ static struct free_space largest_free_space(struct partition_table unsorted)
     for (int i=0; i<space[i].blocks; i++)
         if (space[i].blocks >= found.blocks)
             found = space[i];
-    free(space);
     return found;
 }
 
@@ -1111,21 +1095,13 @@ static struct partition_table table_from_image(struct write_image image, struct 
     struct write_vec *gpt_partitions     = find_vec("gpt_partitions",     partition_sectors(t));
     //struct write_vec *alt_gpt_partitions = find_vec("alt_gpt_partitions", partition_sectors(t));
 
-    free(t.partition); // May be a different length, so reallocate it.
+    // May be a different length, so reallocate it.
     t.partition = xmemdup(gpt_partitions->buffer, sizeof(*t.partition) * t.header->partition_entries);
     gpt_partition_to_host(t.partition, t.header->partition_entries);
 
     create_mbr_alias_table(&t);
 
     return t;
-}
-
-void free_image(struct write_image image)
-{
-    for (int i=0; i < image.count; i++) {
-        free(image.vec[i].buffer);
-        free(image.vec[i].name);
-    }
 }
 
 static int export_image(struct write_image image, struct device *dev, char *filename)
@@ -1164,7 +1140,6 @@ static int export_table(struct partition_table t, char *filename)
 {
     struct write_image image = image_from_table(t);
     int status = export_image(image, t.dev, filename);
-    free_image(image);
     return status;
 }
 
@@ -1236,7 +1211,6 @@ static int import_image(struct write_image *image_out, struct device *dev, char 
     if (data) fclose(data);
     if (info) fclose(info);
     if (!err) *image_out = image;
-    else free_image(image);
     return err;
 }
 
@@ -1249,7 +1223,6 @@ int command_import(char **arg)
     struct device *dev = g_table.dev;
     free_table(g_table);
     g_table = table_from_image(image, dev);
-    free_image(image);
     return status;
 }
 command_add("import", command_import, "Load table from a previously exported file",
@@ -1306,16 +1279,14 @@ static int write_table(struct partition_table t, bool force, bool dry_run, bool 
         if (!isalnum(dev_name[i]))
             dev_name[i] = '_';
 
-    char backup_path[PATH_MAX];
-    snprintf(backup_path, sizeof(backup_path), "%s/.gdisk", HOME);
+    char *backup_path = xsprintf("%s/.gdisk", HOME);
     mkdir(backup_path, 0777);
-    sncatprintf(backup_path, sizeof(backup_path), "/backups");
+    backup_path = xsprintf("%s/backups", backup_path);
     mkdir(backup_path, 0777);
-    sncatprintf(backup_path, sizeof(backup_path), "/%s", dev_name);
     time_t now = time(NULL);
-    strftime(backup_path + strlen(backup_path), sizeof(backup_path) - strlen(backup_path),
-             "-%G-%m-%d-%H-%M-%S", localtime(&now));
-    free(dev_name);
+    char time_str[PATH_MAX];
+    strftime(time_str, sizeof(time_str), "%G-%m-%d-%H-%M-%S", localtime(&now));
+    backup_path = xsprintf("%s/%s-%s", backup_path, dev_name, time_str);
 
     struct write_image image = image_from_table(t);
     struct write_image backup = image_from_image(image, t.dev);
@@ -1324,7 +1295,6 @@ static int write_table(struct partition_table t, bool force, bool dry_run, bool 
         warn("Error writing backup of table");
         if (!force) return ECANCELED;
     }
-    free_image(backup);
 
     int err = 0;
     for (int i=0; i<image.count; i++) {
@@ -1340,7 +1310,6 @@ static int write_table(struct partition_table t, bool force, bool dry_run, bool 
             break;
         }
     }
-    free_image(image);
     return err;
 }
 
@@ -1359,36 +1328,35 @@ command_add("write", command_write, "Write the partition table back to the disk"
             command_arg("dry-run", C_Flag, "Don't write the table, just print what we would do"),
             command_arg("verbose", C_Flag, "Dump all the data to the screen before writing"));
 
-static char *_p_first_lba(struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return dsprintf("%14"PRId64"", p->first_lba); }
-static char *_p_last_lba (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return dsprintf("%14"PRId64"", p->last_lba); }
-static char *_p_size     (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return dsprintf("%14"PRId64" (%9s)", (p->last_lba - p->first_lba + 1) * dev->sector_size,
+static char *_p_first_lba(struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return xsprintf("%14"PRId64"", p->first_lba); }
+static char *_p_last_lba (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return xsprintf("%14"PRId64"", p->last_lba); }
+static char *_p_size     (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return xsprintf("%14"PRId64" (%9s)", (p->last_lba - p->first_lba + 1) * dev->sector_size,
                                                                                                                           human_string((p->last_lba - p->first_lba + 1) * dev->sector_size)); }
-static char *_p_guid     (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return dstrdup(guid_str(p->partition_guid)); }
-static char *_p_flags    (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return dsprintf("implement_me"); }
-static char *_p_boot     (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !m ? "" : dsprintf("%s", m->status & MBR_STATUS_BOOTABLE ? "*" : ""); }
-static char *_p_mbr_type (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !m ? "" : dsprintf("%02x", m->partition_type); }
+static char *_p_guid     (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return xstrdup(guid_str(p->partition_guid)); }
+static char *_p_flags    (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return xsprintf("implement_me"); }
+static char *_p_boot     (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !m ? "" : xsprintf("%s", m->status & MBR_STATUS_BOOTABLE ? "*" : ""); }
+static char *_p_mbr_type (struct gpt_partition *p, struct mbr_partition *m, struct device *dev) { return !m ? "" : xsprintf("%02x", m->partition_type); }
 static char *_p_gpt_type (struct gpt_partition *p, struct mbr_partition *m, struct device *dev)
 {
     char *string = NULL;
     for (int t=0; gpt_partition_type[t].name; t++)
         if (guid_eq(gpt_partition_type[t].guid, p->partition_type))
-            string = xstrcat(string, dsprintf("%s%s", string ? " or " : "", gpt_partition_type[t].name));
+            string = xstrcat(string, xsprintf("%s%s", string ? " or " : "", gpt_partition_type[t].name));
     if (!string)
         return guid_str(p->partition_type);
-    return dalloc_remember(string);
+    return string;
 }
 static char *_p_gpt_label(struct gpt_partition *p, struct mbr_partition *m, struct device *dev)
 {
     wchar_t name[36];
     for (int i=0; i<lengthof(name); i++)
         name[i] = p->name[i];
-    return dsprintf("%.36ls", name);
+    return xsprintf("%.36ls", name);
 }
 
 static int command_print(char **arg)
 {
     bool verbose = !!arg[1];
-    dalloc_start();
     printf("%s:\n", g_table.dev->name);
     printf("  Disk GUID: %s\n", guid_str(g_table.header->disk_guid));
     printf("  %lld %ld byte sectors for %lld total bytes (%s capacity)\n",
@@ -1456,7 +1424,6 @@ static int command_print(char **arg)
                 printf(format(c), column[c].width, column[c].data[p]);
         printf("\n");
     }
-    dalloc_free();
     return 0;
 }
 command_add("print", command_print, "Print the partition table.",
@@ -1567,16 +1534,6 @@ static int command_dump_mbr(char **arg)
 command_add("debug-dump-mbr", command_dump_mbr, "Dump MBR structure");
 
 // Some useful library routines. Should maybe go in another file at some point.
-
-static size_t sncatprintf(char *buffer, size_t space, char *format, ...)
-{
-    va_list ap;
-    va_start(ap, format);
-    size_t length = strlen(buffer);
-    int count = vsnprintf(buffer + length, space - length, format, ap);
-    va_end(ap);
-    return count;
-}
 
 static char *tr(char *in, char *from, char *to)
 {
