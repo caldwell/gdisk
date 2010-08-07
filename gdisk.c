@@ -645,13 +645,13 @@ static struct partition_table read_gpt_table(struct device *dev)
     #warning "TODO: Sanity check first_usable_lba and last_usable_lba."
 
     // If one is bad, fix it from the other one...
-    if (!primary_valid && alternate_valid) {
+    if (primary_valid && !alternate_valid) {
         *t.alt_header = *t.header;
         uint64_t temp = t.alt_header->my_lba;
         t.alt_header->my_lba = t.alt_header->alternate_lba;
         t.alt_header->alternate_lba = temp;
         t.alt_header->partition_entry_lba = t.alt_header->last_usable_lba + 1;
-    } else if (primary_valid && !alternate_valid) {
+    } else if (!primary_valid && alternate_valid) {
         *t.header = *t.alt_header;
         uint64_t temp = t.header->my_lba;
         t.header->my_lba = t.header->alternate_lba;
