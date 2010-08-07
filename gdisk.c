@@ -544,10 +544,6 @@ static struct partition_table read_gpt_table(struct device *dev)
 
     bool primary_valid = true, alternate_valid = true;
 
-#define valid_header (primary_valid   ? t.header     :          \
-                      alternate_valid ? t.alt_header : NULL)
-
-
 #define header_error(format, ...) ({                        \
             fprintf(stderr, format, ##__VA_ARGS__);         \
             fprintf(stderr, ". Assuming blank partition...\n");   \
@@ -564,7 +560,7 @@ static struct partition_table read_gpt_table(struct device *dev)
 #define header_corrupt(which, format, ...) ({                             \
         header_warning(format, ##__VA_ARGS__);                            \
         which ## _valid = false;                                          \
-        if (!valid_header)                                                \
+        if (!primary_valid && !alternate_valid)                           \
             return header_error("There were no valid GPT headers found"); \
         })
 
