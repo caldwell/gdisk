@@ -12,8 +12,8 @@ type: :bugfix
 component: gdisk
 release: 
 reporter: David Caldwell <david@porkrind.org>
-status: :unstarted
-disposition: 
+status: :closed
+disposition: :fixed
 creation_time: 2010-12-23 05:43:23.715901 Z
 references: []
 
@@ -23,3 +23,12 @@ log_events:
   - David Caldwell <david@porkrind.org>
   - created
   - ""
+- - 2011-01-07 19:56:08.152950 Z
+  - David Caldwell <david@porkrind.org>
+  - closed with disposition fixed
+  - |-
+    commit 42a5e47669da79188133d961e92cb5a95d68cd9a
+    Author: David Caldwell <david@porkrind.org>
+    Date:   Fri Jan 7 11:55:29 2011 -0800
+    
+        [gdisk.c] Print mbr sizes as unsigned so we don't get negative numbers when the disk is too big. (Closes: #b2f1cba1c)
