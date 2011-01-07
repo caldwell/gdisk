@@ -1,0 +1,22 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Command completion on the command line sucks.
+desc: |-
+  add --type=<tab> should complete.
+  add <tab> should complete too!
+  Probably needs some sort of partial command parsing.
+  add --ver<tab> should also complete (probably harder).
+type: :feature
+component: gdisk
+release: 
+reporter: David Caldwell <david@porkrind.org>
+status: :unstarted
+disposition: 
+creation_time: 2011-01-07 20:01:07.946268 Z
+references: []
+
+id: b6eaf52476325f5b4cab41a5cfff85efb9194b4d
+log_events: 
+- - 2011-01-07 20:01:14.354855 Z
+  - David Caldwell <david@porkrind.org>
+  - created
+  - ""
