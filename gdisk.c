@@ -485,8 +485,10 @@ static int command_add_protective_mbr_partition(char **arg)
                 .sectors = g_table.header->first_usable_lba-1-1/*mbr*/,
                 .partition_type = 0xee,
             };
-            return true;
+            return 0;
         }
+    fprintf(stderr, "No free MBR partitions found.\n");
+    return ENOSPC;
 }
 command_add("add-protective-mbr-partition", command_add_protective_mbr_partition, "Add a protective MBR entry that just covers the EFI partitioning sectors.");
 
