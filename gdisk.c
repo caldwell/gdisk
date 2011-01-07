@@ -1509,10 +1509,10 @@ static int command_print_mbr(char **arg)
         printf("    %d) %02x %6s",
                    i, g_table.mbr.partition[i].status, g_table.mbr.partition[i].status & MBR_STATUS_BOOTABLE ? "(boot)" : "");
         if (verbose)
-            printf(" %4d:%03d:%02d %4d:%03d:%02d",
+            printf(" %4u:%03u:%02u %4u:%03u:%02u",
                    g_table.mbr.partition[i].first_sector.cylinder, g_table.mbr.partition[i].first_sector.head, g_table.mbr.partition[i].first_sector.sector,
                    g_table.mbr.partition[i].last_sector.cylinder,  g_table.mbr.partition[i].last_sector.head,  g_table.mbr.partition[i].last_sector.sector);
-        printf(" %10d %10d (%9s) %02x (%s)\n",
+        printf(" %10u %10u (%9s) %02x (%s)\n",
                    g_table.mbr.partition[i].first_sector_lba,
                    g_table.mbr.partition[i].sectors, human_string((long long)g_table.mbr.partition[i].sectors * g_table.dev->sector_size),
                    g_table.mbr.partition[i].partition_type,
