@@ -1,0 +1,21 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Need more mbr tools.
+desc: |-
+  Right now MBR support is very limited.
+  The original idea was that you'd use fdisk for mbr and gdisk for gpt.
+  But you need to keep things in sync and it sucks to pop back and forth.
+type: :feature
+component: gdisk
+release: 
+reporter: David Caldwell <david@porkrind.org>
+status: :unstarted
+disposition: 
+creation_time: 2011-01-07 20:03:10.670726 Z
+references: []
+
+id: c29baa29d998069ee21ea18f8f3910ac884ff1d9
+log_events: 
+- - 2011-01-07 20:03:13.774520 Z
+  - David Caldwell <david@porkrind.org>
+  - created
+  - ""
