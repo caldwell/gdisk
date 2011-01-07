@@ -1,0 +1,20 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: write then quit says "Quitting without saving changes".
+desc: |-
+  "write" should either quit automatically like fdisk.
+  Or there should be some sort of dirty bit in the partition so we that "Quitting without saving changes" actually means something.
+type: :bugfix
+component: gdisk
+release: 
+reporter: David Caldwell <david@porkrind.org>
+status: :unstarted
+disposition: 
+creation_time: 2011-01-07 19:59:32.678927 Z
+references: []
+
+id: 6dbad788bf175d0e8592848c9bce5f175da580c6
+log_events: 
+- - 2011-01-07 19:59:33.927228 Z
+  - David Caldwell <david@porkrind.org>
+  - created
+  - ""
