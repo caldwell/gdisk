@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <assert.h>
 #include <wchar.h>
 #include <errno.h>
 #include <inttypes.h>
