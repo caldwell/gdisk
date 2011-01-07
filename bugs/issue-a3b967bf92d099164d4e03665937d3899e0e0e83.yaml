@@ -1,0 +1,21 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Needs documentation
+desc: |-
+  1) man page.
+  2) README
+  somewhere there needs to be good howto style examples.
+type: :feature
+component: gdisk
+release: 
+reporter: David Caldwell <david@porkrind.org>
+status: :unstarted
+disposition: 
+creation_time: 2011-01-07 20:07:04.416956 Z
+references: []
+
+id: a3b967bf92d099164d4e03665937d3899e0e0e83
+log_events: 
+- - 2011-01-07 20:07:05.465336 Z
+  - David Caldwell <david@porkrind.org>
+  - created
+  - ""
