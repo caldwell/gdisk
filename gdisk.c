@@ -539,6 +539,23 @@ static int gpt_from_mbr(char **arg)
 }
 command_add("init-gpt-from-mbr", gpt_from_mbr, "(Re)create GPT partition table using data from the MBR partition table");
 
+static int recreate_gpt(char **arg)
+{
+    struct mbr mbr = g_table.mbr;
+    struct partition_table new_table = blank_table(g_table.dev);
+    new_table.header->disk_guid = new_table.alt_header->disk_guid = g_table.header->disk_guid;
+    assert(new_table.header->partition_entries == g_table.header->partition_entries);
+    struct partition_table gt = g_table;
+    g_table.header = new_table.header;
+    g_table.alt_header = new_table.alt_header;
+    new_table.header = gt.header;
+    new_table.alt_header = gt.alt_header;
+    free_table(new_table);
+    update_table_crc(&g_table);
+    return 0;
+}
+command_add("recreate-gpt", recreate_gpt, "Recreate GPT partition table using partitions in current GPT. Useful for resizing disks.");
+
 static struct partition_table read_gpt_table(struct device *dev)
 {
     struct partition_table t = {};
