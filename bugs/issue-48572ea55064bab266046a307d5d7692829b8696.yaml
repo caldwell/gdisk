@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Bad CRC checksum (rare).
+desc: Very occassionally I'll see a bad CRC error. But I can't reproduce it reliably.
+type: :bugfix
+component: gdisk
+release: 
+reporter: David Caldwell <david@porkrind.org>
+status: :unstarted
+disposition: 
+creation_time: 2011-01-07 20:04:41.790027 Z
+references: []
+
+id: 48572ea55064bab266046a307d5d7692829b8696
+log_events: 
+- - 2011-01-07 20:04:43.030582 Z
+  - David Caldwell <david@porkrind.org>
+  - created
+  - ""
