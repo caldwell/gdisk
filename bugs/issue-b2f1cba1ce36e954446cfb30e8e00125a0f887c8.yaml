@@ -1,0 +1,25 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: 2TB disks show up with negative numbers
+desc: |-
+  gdisk> print-mbr --verbose
+      #) Flags     Start C:H:S End C:H:S    Start LBA                   Size Type
+      --------------------------------------------------------------------------------------------------
+      0) 00           0:000:02  253:254:63          1    4080509 (  1.95 GB) 83 (Linux)
+      1) 00         254:000:01 1023:254:63    4080510 -392018638 (  1.82 TB) 83 (Linux)
+      2) Unused entry
+      3) Unused entry
+type: :bugfix
+component: gdisk
+release: 
+reporter: David Caldwell <david@porkrind.org>
+status: :unstarted
+disposition: 
+creation_time: 2010-12-23 05:43:23.715901 Z
+references: []
+
+id: b2f1cba1ce36e954446cfb30e8e00125a0f887c8
+log_events: 
+- - 2010-12-23 05:43:25.367863 Z
+  - David Caldwell <david@porkrind.org>
+  - created
+  - ""
