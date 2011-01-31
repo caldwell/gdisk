@@ -542,7 +542,6 @@ command_add("init-gpt-from-mbr", gpt_from_mbr, "(Re)create GPT partition table u
 
 static int recreate_gpt(char **arg)
 {
-    struct mbr mbr = g_table.mbr;
     struct partition_table new_table = blank_table(g_table.dev);
     new_table.header->disk_guid = new_table.alt_header->disk_guid = g_table.header->disk_guid;
     assert(new_table.header->partition_entries == g_table.header->partition_entries);
