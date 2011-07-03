@@ -833,20 +833,21 @@ static bool sync_partition_to_mbr(struct partition_table *t, int gpt_index)
 
 static int command_create_partition(char **arg)
 {
+    enum { Type=1, Size, Label, First_lba, Last_lba, System, Guid };
     struct gpt_partition part = {};
-    part.partition_type = type_guid_from_string(arg[1]);
+    part.partition_type = type_guid_from_string(arg[Type]);
     if (guid_eq(bad_guid, part.partition_type)) {
-        fprintf(stderr, "Unknown GUID format: \"%s\"\n", arg[1]);
+        fprintf(stderr, "Unknown GUID format: \"%s\"\n", arg[Type]);
         return EINVAL;
     }
 
-    part.partition_guid = arg[7] ? guid_from_string(arg[7]) : guid_create();
+    part.partition_guid = arg[Guid] ? guid_from_string(arg[Guid]) : guid_create();
     if (guid_eq(bad_guid, part.partition_guid)) {
-        fprintf(stderr, "Unknown GUID format: \"%s\"\n", arg[7]);
+        fprintf(stderr, "Unknown GUID format: \"%s\"\n", arg[Guid]);
         return EINVAL;
     }
 
-    uint64_t size = human_size(arg[2]);
+    uint64_t size = human_size(arg[Size]);
     uint64_t blocks = divide_round_up(size, g_table.dev->sector_size);
     if (!size) {
         struct free_space largest = largest_free_space(g_table);
@@ -860,14 +861,14 @@ static int command_create_partition(char **arg)
         printf("Largest unused space: %"PRId64" blocks (%"PRId64", %s) at block %"PRId64".\n",
                blocks, size, human_string(size), part.first_lba);
     } else
-        part.first_lba = arg[4] ? strtoull(arg[4], NULL, 0) : find_free_space(g_table, blocks);
+        part.first_lba = arg[First_lba] ? strtoull(arg[First_lba], NULL, 0) : find_free_space(g_table, blocks);
     if (part.first_lba == -1LL) {
         fprintf(stderr, "Couldn't find %"PRId64" blocks (%"PRId64", %s) of free space.\n", blocks, size, human_string(size));
         return ENOSPC;
     }
-    part.last_lba = arg[5] ? strtoull(arg[5], NULL, 0) : part.first_lba + blocks - 1;
-    part.attributes = 0 | (arg[6] ? PA_SYSTEM_PARTITION : 0);
-    utf16_from_ascii(part.name, arg[3] ? arg[3] : "", lengthof(part.name));
+    part.last_lba = arg[Last_lba] ? strtoull(arg[Last_lba], NULL, 0) : part.first_lba + blocks - 1;
+    part.attributes = 0 | (arg[System] ? PA_SYSTEM_PARTITION : 0);
+    utf16_from_ascii(part.name, arg[Label] ? arg[Label] : "", lengthof(part.name));
 
     dump_partition(&part);
 
