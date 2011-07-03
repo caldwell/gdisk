@@ -1049,7 +1049,7 @@ static int command_edit_attributes(char **arg)
 
     return 0;
 }
-command_add("edit-attributes", command_edit_attributes, "Change parts of a partition",
+command_add("edit-attributes", command_edit_attributes, "Set or clear attribute bits of a partition",
             command_arg("index",      C_Number, "The index number of the partition. The first partitiion is partition zero"),
             command_arg("command",    C_String, "\"set\" or \"clear\" -- what you want to do to the bits"),
             command_arg("attributes", C_String, "The bits you want to set or clear as a number (or \"system\" for \"System Partition\" attribute)"));
