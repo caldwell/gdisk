@@ -849,7 +849,17 @@ static int command_create_partition(char **arg)
 
     uint64_t size = human_size(arg[Size]);
     uint64_t blocks = divide_round_up(size, g_table.dev->sector_size);
-    if (!size) {
+
+    if (arg[First_lba] && !size && !arg[Last_lba]) {
+        fprintf(stderr, "If you specify the first LBA then you must give a size or a last LBA.\n");
+        return EINVAL;
+    }
+    if (size && arg[Last_lba]) {
+        fprintf(stderr, "You can't give both a size and a last LBA.\n");
+        return EINVAL;
+    }
+
+    if (!size && !arg[First_lba]) {
         struct free_space largest = largest_free_space(g_table);
         if (!largest.blocks) {
             fprintf(stderr, "There is no free space left!\n");
