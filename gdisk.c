@@ -80,14 +80,16 @@ int main(int c, char **v)
         rl_completion_entry_function = (void*)command_completion; // rl_completion_entry_function is defined to return an int??
         rl_completion_append_character = ' ';
         line = readline("gdisk> ");
-        if (!line)
+        if (!line) {
+            printf("\n");
             break;
+        }
         status = run_command(line, &final_line);
         add_history(final_line);
         free(line);
         free(final_line);
     } while (status != ECANCELED); // Special case meaning Quit!
-    printf("\nQuitting without saving changes.\n");
+    printf("Quitting without saving changes.\n");
 
     free_table(g_table);
 
