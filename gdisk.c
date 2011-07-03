@@ -950,7 +950,7 @@ static int command_delete_partition(char **arg)
 }
 
 command_add("delete", command_delete_partition, "Delete a partition from the table",
-            command_arg("index",     C_Number, "The index number of the partition. The first partitiion is partition zero"));
+            command_arg("index",     C_Number, "The index number of the partition. The first partition is partition zero"));
 
 static int command_sync_mbr(char **arg)
 {
