@@ -970,6 +970,21 @@ static int command_sync_mbr(char **arg)
 command_add("init-mbr-from-gpt", command_sync_mbr, "(Re)create MBR partition table using data from the GPT partition table",
             command_arg("force",     C_Flag, "Force a re-sync if the MBR already looks synced"));
 
+static int command_sync_mbr_partition(char **arg)
+{
+    int index = choose_partition(arg[1]);
+    if (index < 0) return EINVAL;
+
+    if (!sync_partition_to_mbr(&g_table, index)) {
+        fprintf(stderr, "Error syncing partition %d.\n", index);
+        return -1;
+    }
+
+    return 0;
+}
+command_add("init-mbr-partition-from-gpt", command_sync_mbr_partition, "Create a single MBR partition using data from a GPT partition",
+            command_arg("gpt-partition-index", C_Number, "The index number of the source GPT partition. The first partition is partition zero")/*,
+            command_arg("mbr-partition-index", C_Number|C_Optional, "The index number of the destination MBR partition. The first partition is zero.")*/);
 
 static int command_edit(char **arg)
 {
