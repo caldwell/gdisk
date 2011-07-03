@@ -1055,6 +1055,21 @@ command_add("edit-attributes", command_edit_attributes, "Set or clear attribute 
             command_arg("attributes", C_String, "The bits you want to set or clear as a number (or \"system\" for \"System Partition\" attribute)"));
 
 
+static int command_edit_mbr(char **arg)
+{
+    int index = strtol(arg[1], NULL, 0);
+    if (index < 0 || index >= 4) {
+        fprintf(stderr, "Bad index '%d'. Should be between 0 and %d (inclusive).\n", index, 3);
+        return -1;
+    }
+    g_table.mbr.partition[index].partition_type = strtoul(arg[2], NULL, 16);
+    create_mbr_alias_table(&g_table); // It might have gotten out of sync.
+    return 0;
+}
+command_add("edit-mbr", command_edit_mbr, "Change details of an MBR partition",
+            command_arg("index",      C_Number, "The index number of the MBR partition. The first partitiion is partition zero"),
+            command_arg("type",       C_Number, "Type of partition (in hex)"));
+
 struct write_vec {
     void *buffer;
     unsigned long long block;
