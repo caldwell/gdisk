@@ -545,6 +545,10 @@ static int recreate_gpt(char **arg)
     struct partition_table new_table = blank_table(g_table.dev);
     new_table.header->disk_guid = new_table.alt_header->disk_guid = g_table.header->disk_guid;
     assert(new_table.header->partition_entries == g_table.header->partition_entries);
+    /* Should never happen because for now all gpt partitions have the same number of entries: */
+    if (new_table.header->partition_entries < g_table.header->partition_entries)
+        fprintf(stderr, "Warning: new partition table has less partition entries (%d) than the old table (%d). Some partitions may be dropped.\n",
+                new_table.header->partition_entries, g_table.header->partition_entries);
     struct partition_table gt = g_table;
     g_table.header = new_table.header;
     g_table.alt_header = new_table.alt_header;
