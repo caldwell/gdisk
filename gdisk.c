@@ -41,6 +41,7 @@ struct free_space {
 };
 static struct free_space *find_free_spaces(struct partition_table unsorted);
 static struct free_space largest_free_space(struct partition_table unsorted);
+static bool table_is_dirty(struct partition_table t);
 static void dump_dev(struct device *dev);
 static void dump_header(struct gpt_header *header);
 static void dump_partition(struct gpt_partition *p);
@@ -89,7 +90,8 @@ int main(int c, char **v)
         free(line);
         free(final_line);
     } while (status != ECANCELED); // Special case meaning Quit!
-    printf("Quitting without saving changes.\n");
+    if (table_is_dirty(g_table))
+        printf("Quitting without saving changes.\n");
 
     free_table(g_table);
 
@@ -1367,6 +1369,20 @@ static void dump_data(void *data, size_t length)
             printf("%c",  isprint(d[j]) ? d[j] : '.');
         printf("\n");
     }
+}
+
+static bool table_is_dirty(struct partition_table t)
+{
+    struct write_image image = image_from_table(t);
+    bool dirty = false;
+    for (int i=0; i<image.count; i++) {
+        void *chunk = get_sectors(t.dev, image.vec[i].block, image.vec[i].blocks);
+        if (memcmp(image.vec[i].buffer, chunk, image.vec[i].blocks * t.dev->sector_size) != 0)
+            dirty = true;
+        free(chunk);
+    }
+    free_image(image);
+    return dirty;
 }
 
 static int write_table(struct partition_table t, bool force, bool dry_run, bool verbose)
