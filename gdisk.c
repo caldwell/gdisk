@@ -888,6 +888,21 @@ static int command_create_partition(char **arg)
     part.attributes = 0 | (arg[System] ? PA_SYSTEM_PARTITION : 0);
     utf16_from_ascii(part.name, arg[Label] ? arg[Label] : "", lengthof(part.name));
 
+    if (part.last_lba < part.first_lba) {
+        fprintf(stderr, "Last LBA (%"PRIu64") must be larger than the Start LBA (%"PRIu64")\n", part.last_lba, part.first_lba);
+        return EINVAL;
+    }
+
+    if (part.first_lba < g_table.header->first_usable_lba) {
+        fprintf(stderr, "First LBA (%"PRIu64") must be greater (or equal) to the First Usable LBA (%"PRIu64")\n", part.first_lba, g_table.header->first_usable_lba);
+        return EINVAL;
+    }
+
+    if (part.last_lba > g_table.header->last_usable_lba) {
+        fprintf(stderr, "Last LBA (%"PRIu64") must be smaller than the Last Usable LBA (%"PRIu64")\n", part.last_lba, g_table.header->last_usable_lba);
+        return EINVAL;
+    }
+
     dump_partition(&part);
 
     struct gpt_partition *p = find_unused_partition(g_table);
