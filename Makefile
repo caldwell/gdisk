@@ -14,7 +14,10 @@ gdisk: gdisk.o guid.o partition-type.o mbr.o device.o autolist.o csprintf.o huma
 
 gdisk: LDLIBS += -lreadline -lz
 gdisk: LDLIBS-linux += -luuid
-gdisk.o: CFLAGS-macosx += -Drl_filename_completion_function=filename_completion_function
+gdisk.o gdisk.E: CFLAGS-macosx += -Drl_filename_completion_function=filename_completion_function
+
+%.E: %.c Makefile
+	$(CC) -E -o $@ $(CFLAGS) $(CPPFLAGS) $<
 
 TAGS: *.c
 	find . -name "*.[ch]" | etags -
