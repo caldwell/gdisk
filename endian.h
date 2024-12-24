@@ -2,14 +2,16 @@
 #ifndef __ENDIAN_H__
 #define __ENDIAN_H__
 
-#ifdef __APPLE__
+#if defined(__APPLE__)
 # include <machine/endian.h>
+#elif defined(__linux__)
+# include <endian.h>
+#else
+# warning "Unknown compilation host os"
 #endif
 
-#ifdef __LINUX__
-# error "LINUX"
-# define __USE_BSD
-# include <endian.h>
+#ifndef BYTE_ORDER
+# error "Couldn't determine machine/os endianess!"
 #endif
 
 #if BYTE_ORDER == BIG_ENDIAN
