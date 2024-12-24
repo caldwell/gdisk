@@ -1,4 +1,5 @@
-#  Copyright (c) 2008 David Caldwell,  All Rights Reserved.
+# Copyright © 2008-2024 David Caldwell <david@porkrind.org>
+# Copyright © 2009      Jim Radford <radford@blackbean.org>
 
 PLATFORM := $(shell uname -s | sed -e s/Linux/linux/ -e s/Darwin/macosx/)
 DEBUG = -g

@@ -1,4 +1,4 @@
-//  Copyright (c) 2008 David Caldwell,  All Rights Reserved.
+// Copyright © 2009-2024 David Caldwell <david@porkrind.org>
 #ifndef __ENDIAN_H__
 #define __ENDIAN_H__
 
