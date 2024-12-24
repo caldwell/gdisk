@@ -1617,17 +1617,17 @@ static void dump_header(struct gpt_header *header)
 {
     printf("signature[8]         = %.8s\n", header->signature);
     printf("revision             = %08x\n", header->revision);
-    printf("header_size          = %d\n",   header->header_size);
+    printf("header_size          = %u\n",   header->header_size);
     printf("header_crc32         = %08x\n", header->header_crc32);
     printf("reserved             = %08x\n", header->reserved);
-    printf("my_lba               = %"PRId64"\n", header->my_lba);
-    printf("alternate_lba        = %"PRId64"\n", header->alternate_lba);
-    printf("first_usable_lba     = %"PRId64"\n", header->first_usable_lba);
-    printf("last_usable_lba      = %"PRId64"\n", header->last_usable_lba);
+    printf("my_lba               = %"PRIu64"\n", header->my_lba);
+    printf("alternate_lba        = %"PRIu64"\n", header->alternate_lba);
+    printf("first_usable_lba     = %"PRIu64"\n", header->first_usable_lba);
+    printf("last_usable_lba      = %"PRIu64"\n", header->last_usable_lba);
     printf("disk_guid            = %s\n",   guid_str(header->disk_guid));
-    printf("partition_entry_lba  = %"PRId64"\n", header->partition_entry_lba);
-    printf("partition_entries    = %d\n",   header->partition_entries);
-    printf("partition_entry_size = %d\n",   header->partition_entry_size);
+    printf("partition_entry_lba  = %"PRIu64"\n", header->partition_entry_lba);
+    printf("partition_entries    = %u\n",   header->partition_entries);
+    printf("partition_entry_size = %u\n",   header->partition_entry_size);
     printf("partition_crc32      = %08x\n", header->partition_crc32);
 }
 
